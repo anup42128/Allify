@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Sign In - Allify</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+    <div class="landing-page">
+        <header>
+            <div class="logo">
+                <h1>Allify</h1>
+            </div>
+        </header>
+
+        <main>
+            <section class="hero">
+                <div class="hero-content">
+                    <h2>Welcome back</h2>
+                    <p>Sign in to your Allify account to connect with friends and share your moments.</p>
+                    <div class="cta-section">
+                        <h3>Sign in to your account</h3>
+                        <form id="signin-form">
+                            <div class="input-group">
+                                <input type="text" id="signin-username" placeholder="Username or Email" required>
+                            </div>
+                            <div class="input-group">
+                                <input type="password" id="signin-password" placeholder="Password" required>
+                            </div>
+                            <button type="submit" class="btn-primary">Sign In</button>
+                        </form>
+                        <div class="signin-option">
+                            <p>Don't have an account? <a href="index.html" class="signin-link">Sign up</a></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-image">
+                    <div class="animated-element element-1"></div>
+                    <div class="animated-element element-2"></div>
+                    <div class="animated-element element-3"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <h2>Allify</h2>
+                </div>
+                <div class="footer-links">
+                    <ul>
+                        <li><a href="#">Features</a></li>
+                        <li><a href="#">About</a></li>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Allify. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/signin.js"></script>
+</body>
+</html>

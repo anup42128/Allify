@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Welcome to Allify - Your Social Network</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+    <div class="welcome-page">
+        <header class="welcome-header">
+            <div class="logo">
+                <h1>Allify</h1>
+            </div>
+        </header>
+
+        <main class="welcome-main">
+            <section class="welcome-hero">
+                <div class="welcome-content">
+                    <div class="welcome-animation">
+                        <div class="welcome-icon">
+                            <div class="icon-circle">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h1 class="welcome-title">
+                        Welcome to <span class="brand-name">Allify</span>
+                    </h1>
+                    
+                    <p class="welcome-subtitle" id="user-greeting">
+                        Hello there! 👋
+                    </p>
+                    
+                    <div class="company-info">
+                        <p class="parent-company">Powered by <span class="uni-brand">UNI</span></p>
+                    </div>
+                    
+                    <div class="welcome-description">
+                        <p>Your social network is ready to connect you with friends, family, and the world.</p>
+                        <p>Share moments, discover stories, and stay connected with the people who matter most.</p>
+                    </div>
+                    
+                    <div class="welcome-actions">
+                        <button class="btn-primary btn-disabled" id="continue-btn" disabled>
+                            <span class="btn-text">Continue</span>
+                            <span class="btn-loading" style="display: none;">
+                                <div class="loading-spinner"></div>
+                                Loading...
+                            </span>
+                        </button>
+                        <p class="coming-soon">🚀 More features coming soon!</p>
+                    </div>
+                </div>
+                
+                <div class="welcome-visual">
+                    <div class="floating-elements">
+                        <div class="floating-card card-1">
+                            <div class="card-content">
+                                <div class="card-icon">👥</div>
+                                <span>Connect</span>
+                            </div>
+                        </div>
+                        <div class="floating-card card-2">
+                            <div class="card-content">
+                                <div class="card-icon">📸</div>
+                                <span>Share</span>
+                            </div>
+                        </div>
+                        <div class="floating-card card-3">
+                            <div class="card-content">
+                                <div class="card-icon">💬</div>
+                                <span>Chat</span>
+                            </div>
+                        </div>
+                        <div class="floating-card card-4">
+                            <div class="card-content">
+                                <div class="card-icon">🌟</div>
+                                <span>Discover</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="welcome-footer">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>Allify</h3>
+                    <p>Connecting the world, one moment at a time</p>
+                </div>
+                <div class="footer-company">
+                    <p>© 2025 Allify by <span class="uni-brand">UNI</span></p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/home.js"></script>
+</body>
+</html>
