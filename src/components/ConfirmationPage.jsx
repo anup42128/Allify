@@ -11,7 +11,6 @@ const ConfirmationPage = () => {
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
     const [resendCooldown, setResendCooldown] = useState(60);
-
     const signupData = location.state?.signupData;
     const email = location.state?.email || signupData?.email;
     const token = location.state?.token;
@@ -32,15 +31,17 @@ const ConfirmationPage = () => {
         return <MConfirmationPage />;
     }
 
-    // 1. Validate navigation token on mount
+    // Validate navigation token on mount
     useEffect(() => {
         if (signupData) {
             const validToken = sessionStorage.getItem('allify_valid_token');
             if (!token || token !== validToken) {
+                // Invalid or missing token - redirect back to birthday setup
                 console.warn('Invalid navigation token, redirecting to birthday setup');
                 navigate('/birthday-setup', {
                     replace: true,
                     state: {
+                        // Pass back data so user doesn't lose it
                         email: signupData.email,
                         password: signupData.password,
                         fullName: signupData.fullName,
@@ -51,9 +52,10 @@ const ConfirmationPage = () => {
         }
     }, [token, signupData, navigate]);
 
-    // 2. Handle new user signup on mount
+    // Handle new user signup on mount
     useEffect(() => {
         if (signupData && !signupPerformedRef.current) {
+            // Check if we already sent the code for this email (persist across refreshes)
             const codeSentKey = `allify_code_sent_for_${signupData.email}`;
             const alreadySent = sessionStorage.getItem(codeSentKey);
 
@@ -64,6 +66,7 @@ const ConfirmationPage = () => {
                 return;
             }
 
+            // This is a new signup - create the user account
             const performSignup = async () => {
                 try {
                     setLoading(true);
@@ -82,8 +85,10 @@ const ConfirmationPage = () => {
                     });
 
                     if (error) {
+                        // Ignore "Database error saving new user" - this is expected
+                        // The profile will be created automatically when user verifies email
                         if (error.message && error.message.includes('Database error saving new user')) {
-                            console.log('Ignoring expected database error');
+                            console.log('Ignoring expected database error (profile will be created on verification)');
                         } else {
                             throw error;
                         }
@@ -91,20 +96,22 @@ const ConfirmationPage = () => {
 
                     console.log('Signup successful, verification code sent!');
                     setSuccess('Verification code sent! Check your email.');
-                    sessionStorage.setItem(codeSentKey, 'true');
+                    sessionStorage.setItem(codeSentKey, 'true'); // Mark as sent
 
                     // Initialize timer
                     const timerEnd = Date.now() + 60000;
                     sessionStorage.setItem(`allify_resend_timer_end_${signupData.email}`, timerEnd.toString());
                     setResendCooldown(60);
 
-                    signupPerformedRef.current = true;
+                    signupPerformedRef.current = true; // Mark signup as completed
                     setLoading(false);
                 } catch (err) {
                     console.error('Signup error:', err);
+                    // Only show error if it's not a rate limit error
                     if (!err.message?.includes('For security purposes')) {
                         setError(err.message || 'Failed to send verification code.');
                     } else {
+                        // If it's a rate limit error, just show success message
                         setSuccess('Verification code already sent! Check your email.');
                         sessionStorage.setItem(codeSentKey, 'true');
                         signupPerformedRef.current = true;
@@ -115,55 +122,59 @@ const ConfirmationPage = () => {
 
             performSignup();
         } else if (signupData && signupPerformedRef.current) {
+            // Signup already performed, just show success message
             setSuccess('Verification code sent! Check your email.');
         }
     }, [signupData]);
 
-    // 3. Check verification status for existing users
+    // Check verification status for existing users
     useEffect(() => {
         if (!email) {
             navigate('/');
             return;
         }
 
+        // Only check verification status if this is NOT a new signup
         if (!signupData) {
             const checkVerificationStatus = async () => {
                 try {
                     const { data: { user } } = await supabase.auth.getUser();
+                    console.log('Checking verification status:', user);
+
+                    // If user exists and email is confirmed, redirect to welcome
                     if (user && user.email_confirmed_at) {
+                        console.log('User already verified (email_confirmed_at set), redirecting to welcome...');
                         setSuccess('Email already verified! Redirecting...');
                         setTimeout(() => {
                             navigate('/welcome', { replace: true });
-                        }, 2000);
+                        }, 2000); // Add delay so user sees the message
+                    } else {
+                        console.log('User not verified yet.');
                     }
                 } catch (error) {
                     console.error('Error checking verification status:', error);
                 }
             };
+
             checkVerificationStatus();
         }
     }, [email, navigate, signupData]);
 
-    // 4. Timer persistence logic
+    // Timer persistence logic
     useEffect(() => {
         if (!email) return;
 
         const timerKey = `allify_resend_timer_end_${email}`;
-        const codeSentKey = `allify_code_sent_for_${email}`;
 
+        // Check for existing timer on mount
         const savedTimerEnd = sessionStorage.getItem(timerKey);
-        const alreadySent = sessionStorage.getItem(codeSentKey);
-
         if (savedTimerEnd) {
             const remaining = Math.ceil((parseInt(savedTimerEnd) - Date.now()) / 1000);
             if (remaining > 0) {
                 setResendCooldown(remaining);
             } else {
                 setResendCooldown(0);
-                sessionStorage.removeItem(timerKey);
             }
-        } else if (alreadySent) {
-            setResendCooldown(0);
         }
 
         if (resendCooldown > 0) {
@@ -186,8 +197,9 @@ const ConfirmationPage = () => {
 
         setSuccess('');
         setError('');
-        setResendCooldown(60);
 
+        // Set cooldown and save to session storage
+        setResendCooldown(60);
         const timerEnd = Date.now() + 60000;
         sessionStorage.setItem(`allify_resend_timer_end_${email}`, timerEnd.toString());
 
@@ -200,6 +212,7 @@ const ConfirmationPage = () => {
             if (error) {
                 if (error.status === 429 || (error.message && error.message.toLowerCase().includes('rate limit'))) {
                     setError('Too many attempts. Please wait before resending.');
+                    // Cooldown is already set, so we just return
                     return;
                 }
                 throw error;
@@ -209,7 +222,7 @@ const ConfirmationPage = () => {
         } catch (err) {
             console.error('Resend error:', err);
             setError(err.message || 'Failed to resend code. Please try again.');
-            setResendCooldown(0);
+            setResendCooldown(0); // Reset cooldown on non-rate-limit errors
         }
     };
 
@@ -230,6 +243,8 @@ const ConfirmationPage = () => {
 
             if (error) throw error;
 
+            console.log('Verification successful, preloading resources...');
+
             // Preload resources
             try {
                 const fontLink = document.createElement('link');
@@ -245,10 +260,23 @@ const ConfirmationPage = () => {
                 fontPreload.href = 'https://fonts.gstatic.com/s/greatvibes/v18/RWmMoKWR9v4ksMfaWd_JN-XCg6UKDXlq.woff2';
                 fontPreload.crossOrigin = 'anonymous';
                 document.head.appendChild(fontPreload);
+
+                const tempDiv = document.createElement('div');
+                tempDiv.style.fontFamily = 'Great Vibes, cursive';
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.visibility = 'hidden';
+                tempDiv.textContent = 'Preload';
+                document.body.appendChild(tempDiv);
+                setTimeout(() => {
+                    if (document.body.contains(tempDiv)) {
+                        document.body.removeChild(tempDiv);
+                    }
+                }, 100);
             } catch (preloadError) {
-                console.warn('Preloading failed');
+                console.warn('Preloading failed, continuing anyway:', preloadError);
             }
 
+            // Wait for 5 seconds before redirecting
             await new Promise(resolve => setTimeout(resolve, 5000));
             navigate('/welcome', { replace: true });
 
