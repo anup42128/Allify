@@ -66,6 +66,13 @@ const BirthdaySetup = () => {
     return <MBirthdaySetup />;
   }
 
+  // Invalidate confirmation token on mount
+  // This ensures that if the user comes back here, they can't just go "Forward"
+  // They MUST click "Continue" to generate a new valid token
+  useEffect(() => {
+    sessionStorage.removeItem('allify_valid_token');
+  }, []);
+
   useEffect(() => {
     if (day && month && year) {
       const monthIndex = months.indexOf(month);
@@ -114,8 +121,13 @@ const BirthdaySetup = () => {
           // Clear saved state before navigating
           sessionStorage.removeItem('allify_birthday_temp');
 
+          // Generate a unique token for this navigation
+          const token = Date.now().toString();
+          sessionStorage.setItem('allify_valid_token', token);
+
           navigate('/confirmation', {
             state: {
+              token: token, // Pass token to verify on next page
               signupData: {
                 email: signupData.email,
                 password: signupData.password,
@@ -124,7 +136,7 @@ const BirthdaySetup = () => {
                 birthday: birthDate
               }
             },
-            replace: true
+            // REMOVED replace: true so we can go back
           });
         } else {
           // Existing User (Google or previously logged in)
