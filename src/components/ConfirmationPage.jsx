@@ -13,6 +13,7 @@ const ConfirmationPage = () => {
     const [resendCooldown, setResendCooldown] = useState(60);
     const signupData = location.state?.signupData;
     const email = location.state?.email || signupData?.email;
+    const token = location.state?.token;
     const signupPerformedRef = useRef(false);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -30,9 +31,41 @@ const ConfirmationPage = () => {
         return <MConfirmationPage />;
     }
 
+    // Validate navigation token on mount
+    useEffect(() => {
+        if (signupData) {
+            const validToken = sessionStorage.getItem('allify_valid_token');
+            if (!token || token !== validToken) {
+                // Invalid or missing token - redirect back to birthday setup
+                console.warn('Invalid navigation token, redirecting to birthday setup');
+                navigate('/birthday-setup', {
+                    replace: true,
+                    state: {
+                        // Pass back data so user doesn't lose it
+                        email: signupData.email,
+                        password: signupData.password,
+                        fullName: signupData.fullName,
+                        username: signupData.username
+                    }
+                });
+            }
+        }
+    }, [token, signupData, navigate]);
+
     // Handle new user signup on mount
     useEffect(() => {
         if (signupData && !signupPerformedRef.current) {
+            // Check if we already sent the code for this email (persist across refreshes)
+            const codeSentKey = `allify_code_sent_for_${signupData.email}`;
+            const alreadySent = sessionStorage.getItem(codeSentKey);
+
+            if (alreadySent) {
+                console.log('Code already sent (session storage), skipping auto-send');
+                setSuccess('Verification code sent! Check your email.');
+                signupPerformedRef.current = true;
+                return;
+            }
+
             // This is a new signup - create the user account
             const performSignup = async () => {
                 try {
@@ -63,6 +96,13 @@ const ConfirmationPage = () => {
 
                     console.log('Signup successful, verification code sent!');
                     setSuccess('Verification code sent! Check your email.');
+                    sessionStorage.setItem(codeSentKey, 'true'); // Mark as sent
+
+                    // Initialize timer
+                    const timerEnd = Date.now() + 60000;
+                    sessionStorage.setItem(`allify_resend_timer_end_${signupData.email}`, timerEnd.toString());
+                    setResendCooldown(60);
+
                     signupPerformedRef.current = true; // Mark signup as completed
                     setLoading(false);
                 } catch (err) {
@@ -73,6 +113,7 @@ const ConfirmationPage = () => {
                     } else {
                         // If it's a rate limit error, just show success message
                         setSuccess('Verification code already sent! Check your email.');
+                        sessionStorage.setItem(codeSentKey, 'true');
                         signupPerformedRef.current = true;
                     }
                     setLoading(false);
@@ -119,21 +160,48 @@ const ConfirmationPage = () => {
         }
     }, [email, navigate, signupData]);
 
+    // Timer persistence logic
     useEffect(() => {
+        if (!email) return;
+
+        const timerKey = `allify_resend_timer_end_${email}`;
+
+        // Check for existing timer on mount
+        const savedTimerEnd = sessionStorage.getItem(timerKey);
+        if (savedTimerEnd) {
+            const remaining = Math.ceil((parseInt(savedTimerEnd) - Date.now()) / 1000);
+            if (remaining > 0) {
+                setResendCooldown(remaining);
+            } else {
+                setResendCooldown(0);
+            }
+        }
+
         if (resendCooldown > 0) {
             const timer = setInterval(() => {
-                setResendCooldown((prev) => prev - 1);
+                setResendCooldown((prev) => {
+                    const newValue = prev - 1;
+                    if (newValue <= 0) {
+                        sessionStorage.removeItem(timerKey);
+                        return 0;
+                    }
+                    return newValue;
+                });
             }, 1000);
             return () => clearInterval(timer);
         }
-    }, [resendCooldown]);
+    }, [resendCooldown, email]);
 
     const handleResend = async () => {
         if (resendCooldown > 0) return;
 
         setSuccess('');
         setError('');
-        setResendCooldown(60); // Start cooldown immediately to prevent spam
+
+        // Set cooldown and save to session storage
+        setResendCooldown(60);
+        const timerEnd = Date.now() + 60000;
+        sessionStorage.setItem(`allify_resend_timer_end_${email}`, timerEnd.toString());
 
         try {
             const { error } = await supabase.auth.resend({
