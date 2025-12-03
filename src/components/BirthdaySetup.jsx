@@ -10,6 +10,33 @@ const BirthdaySetup = () => {
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
+
+  // Load saved state on mount
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('allify_birthday_temp');
+    if (savedState) {
+      const parsed = JSON.parse(savedState);
+      // Only restore if it matches the current user (if we have signupData)
+      if (signupData && parsed.username === signupData.username) {
+        setDay(parsed.day || '');
+        setMonth(parsed.month || '');
+        setYear(parsed.year || '');
+      }
+    }
+  }, [signupData]);
+
+  // Save state on change
+  useEffect(() => {
+    if (signupData?.username) {
+      const stateToSave = {
+        username: signupData.username,
+        day,
+        month,
+        year
+      };
+      sessionStorage.setItem('allify_birthday_temp', JSON.stringify(stateToSave));
+    }
+  }, [day, month, year, signupData]);
   const [isValidAge, setIsValidAge] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -83,6 +110,10 @@ const BirthdaySetup = () => {
         if (signupData) {
           // New User Signup - pass all data to confirmation page
           // The actual signup will happen on the confirmation page
+
+          // Clear saved state before navigating
+          sessionStorage.removeItem('allify_birthday_temp');
+
           navigate('/confirmation', {
             state: {
               signupData: {
