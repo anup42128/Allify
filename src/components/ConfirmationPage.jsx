@@ -49,6 +49,88 @@ const ConfirmationPage = () => {
                     }
                 });
             }
+        }
+    }, [token, signupData, navigate]);
+
+    // Handle new user signup on mount
+    useEffect(() => {
+        if (signupData && !signupPerformedRef.current) {
+            // Check if we already sent the code for this email (persist across refreshes)
+            const codeSentKey = `allify_code_sent_for_${signupData.email}`;
+            const alreadySent = sessionStorage.getItem(codeSentKey);
+
+            if (alreadySent) {
+                console.log('Code already sent (session storage), skipping auto-send');
+                setSuccess('Verification code sent! Check your email.');
+                signupPerformedRef.current = true;
+                return;
+            }
+
+            // This is a new signup - create the user account
+            const performSignup = async () => {
+                try {
+                    setLoading(true);
+                    console.log('Performing signup for:', signupData.email);
+
+                    const { error } = await supabase.auth.signUp({
+                        email: signupData.email,
+                        password: signupData.password,
+                        options: {
+                            data: {
+                                full_name: signupData.fullName,
+                                username: signupData.username,
+                                birthday: signupData.birthday
+                            }
+                        }
+                    });
+
+                    if (error) {
+                        // Ignore "Database error saving new user" - this is expected
+                        // The profile will be created automatically when user verifies email
+                        if (error.message && error.message.includes('Database error saving new user')) {
+                            console.log('Ignoring expected database error (profile will be created on verification)');
+                        } else {
+                            throw error;
+                        }
+                    }
+
+                    console.log('Signup successful, verification code sent!');
+                    setSuccess('Verification code sent! Check your email.');
+                    sessionStorage.setItem(codeSentKey, 'true'); // Mark as sent
+
+                    // Initialize timer
+                    const timerEnd = Date.now() + 60000;
+                    sessionStorage.setItem(`allify_resend_timer_end_${signupData.email}`, timerEnd.toString());
+                    setResendCooldown(60);
+
+                    signupPerformedRef.current = true; // Mark signup as completed
+                    setLoading(false);
+                } catch (err) {
+                    console.error('Signup error:', err);
+                    // Only show error if it's not a rate limit error
+                    if (!err.message?.includes('For security purposes')) {
+                        setError(err.message || 'Failed to send verification code.');
+                    } else {
+                        // If it's a rate limit error, just show success message
+                        setSuccess('Verification code already sent! Check your email.');
+                        sessionStorage.setItem(codeSentKey, 'true');
+                        signupPerformedRef.current = true;
+                    }
+                    setLoading(false);
+                }
+            };
+
+            performSignup();
+        } else if (signupData && signupPerformedRef.current) {
+            // Signup already performed, just show success message
+            setSuccess('Verification code sent! Check your email.');
+        }
+    }, [signupData]);
+
+    // Check verification status for existing users
+    useEffect(() => {
+        if (!email) {
+            navigate('/');
             return;
         }
 
