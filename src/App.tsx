@@ -11,6 +11,10 @@ import { ResetVerifyPage } from './features/auth/pages/ResetVerifyPage';
 import { NewPasswordPage } from './features/auth/pages/NewPasswordPage';
 import { SamplePage } from './components/desktop/SamplePage';
 import { ResetProvider } from './features/auth/contexts/ResetContext';
+import { OnboardingLayout } from './features/onboarding/OnboardingLayout';
+import { ProfileSetup } from './features/onboarding/pages/ProfileSetup';
+import { InterestsSetup } from './features/onboarding/pages/InterestsSetup';
+import { WelcomeFinal } from './features/onboarding/pages/WelcomeFinal';
 
 // Layout wrapper to ensure ResetContext is destroyed when leaving the flow
 const ResetLayout = () => (
@@ -22,7 +26,7 @@ const ResetLayout = () => (
 function App() {
   return (
     <NavigationProvider>
-      <Router>
+      <Router basename="/Allify">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />
@@ -38,6 +42,13 @@ function App() {
           </Route>
 
           <Route path="/sample" element={<ProtectedRoute><SamplePage /></ProtectedRoute>} />
+
+          {/* Onboarding Flow */}
+          <Route path="/onboarding" element={<ProtectedRoute><OnboardingLayout /></ProtectedRoute>}>
+            <Route path="profile" element={<ProfileSetup />} />
+            <Route path="interests" element={<InterestsSetup />} />
+            <Route path="welcome" element={<WelcomeFinal />} />
+          </Route>
         </Routes>
       </Router>
     </NavigationProvider>

@@ -71,8 +71,8 @@ export const LoginPage = () => {
             }
 
             // Success
-            allowRoute('/sample');
-            navigate('/sample');
+            allowRoute('/onboarding/profile');
+            navigate('/onboarding/profile');
 
         } catch (err) {
             console.error("Login error:", err);

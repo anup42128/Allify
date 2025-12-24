@@ -46,3 +46,11 @@ input[type=number] {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #525252; /* neutral-600 */
 }
+
+/* Custom Cropper Cursor (Grab Hand) */
+.cropper-container .reactEasyCrop_Container {
+  cursor: grab !important;
+}
+.cropper-container .reactEasyCrop_Container:active {
+  cursor: grabbing !important;
+}
