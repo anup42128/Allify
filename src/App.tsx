@@ -22,7 +22,7 @@ const ResetLayout = () => (
 function App() {
   return (
     <NavigationProvider>
-      <Router>
+      <Router basename="/Allify">
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />
