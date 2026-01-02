@@ -112,12 +112,12 @@ export const ConfirmPage = () => {
             }
 
             // Success
-            allowRoute('/onboarding/profile');
+            allowRoute('/sample');
             removeRoute('/auth/signup/confirm'); // Block access to confirmation page
 
             // Small delay to ensure allowedRoutes state propagates to ProtectedRoute
             setTimeout(() => {
-                navigate('/onboarding/profile', { replace: true });
+                navigate('/sample', { replace: true });
             }, 100);
         } catch (err) {
             console.error("Verification error:", err);

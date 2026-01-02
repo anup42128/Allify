@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
 import { SocialGraph } from '../../../components/ui/SocialGraph';
 import { useReset } from '../contexts/ResetContext';
+import { api } from '../../../lib/api';
 
 export const ResetVerifyPage = () => {
     const navigate = useNavigate();
@@ -14,6 +15,7 @@ export const ResetVerifyPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState(0);
     const [canResend, setCanResend] = useState(true);
+    const [isResendLocked, setIsResendLocked] = useState(false);
 
     // Security: Only allow access if we're in the exact verifying step AND have a valid transition token
     // If not, go back to where the user came from (effectively blocking the navigation)
@@ -25,32 +27,75 @@ export const ResetVerifyPage = () => {
             return;
         }
 
-        // Initialize resend timer
-        const storedEndTime = localStorage.getItem('allify_reset_resend_end_time');
-        if (storedEndTime) {
-            const endTime = parseInt(storedEndTime, 10);
-            const remaining = Math.ceil((endTime - Date.now()) / 1000);
-            if (remaining > 0) {
-                setTimeLeft(remaining);
+        // Check persistent resend lock
+        const lockedUntil = localStorage.getItem('allify_resend_locked_until');
+        let currentlyLocked = false;
+
+        if (lockedUntil) {
+            const lockTime = parseInt(lockedUntil, 10);
+            const now = Date.now();
+            if (lockTime > now) {
+                setTimeLeft(Math.ceil((lockTime - now) / 1000));
                 setCanResend(false);
+                setIsResendLocked(true);
+                currentlyLocked = true;
             } else {
-                setCanResend(true);
-                setTimeLeft(0);
+                localStorage.removeItem('allify_resend_locked_until');
             }
-        } else {
-            // Only start timer automatically on the VERY FIRST visit to this page
-            startTimer();
+        }
+
+        // Initialize resend timer
+        // Only check for short timer if NOT locked
+        if (!currentlyLocked) {
+            const storedEndTime = localStorage.getItem('allify_reset_resend_end_time');
+            if (storedEndTime) {
+                const endTime = parseInt(storedEndTime, 10);
+                const remaining = Math.ceil((endTime - Date.now()) / 1000);
+                if (remaining > 0) {
+                    setTimeLeft(remaining);
+                    setCanResend(false);
+                } else {
+                    setCanResend(true);
+                    setTimeLeft(0);
+                }
+            } else {
+                // Only start timer automatically on the VERY FIRST visit to this page
+                startTimer();
+            }
+        }
+
+        // Sync with Backend (Double Check) in case local storage was cleared but backend is locked
+        const currentStateLocked = currentlyLocked; // Capture current state to avoid closure staleness if needed (though useEffect runs once)
+        // If we think we are safe, let's ask the backend just to be sure.
+        if (!currentStateLocked) {
+            const deviceId = localStorage.getItem('allify_device_id');
+            if (deviceId) {
+                api.checkResetPermission(deviceId, 'resend', true).then(check => {
+                    if (check && check.status === 'error' && check.cooldown_remaining) {
+                        // Backend says NO. Lock it down.
+                        const lockExpiry = Date.now() + (check.cooldown_remaining * 1000);
+                        localStorage.setItem('allify_resend_locked_until', lockExpiry.toString());
+
+                        setCanResend(false);
+                        setIsResendLocked(true);
+                        setTimeLeft(check.cooldown_remaining);
+                    }
+                });
+            }
         }
     }, [isInvalid, navigate]);
 
+    // Cleanup timer effect to unlock when zero
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
         if (timeLeft > 0) {
             interval = setInterval(() => {
                 setTimeLeft((prev) => {
                     if (prev <= 1) {
+                        // Timer finished
                         setCanResend(true);
-                        // Do NOT remove the key, so we know a timer has already run
+                        setIsResendLocked(false);
+                        localStorage.removeItem('allify_resend_locked_until');
                         return 0;
                     }
                     return prev - 1;
@@ -59,6 +104,13 @@ export const ResetVerifyPage = () => {
         }
         return () => clearInterval(interval);
     }, [timeLeft]);
+
+    const formatTime = (seconds: number) => {
+        if (seconds < 60) return `${seconds}s`;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}m ${remainingSeconds}s`;
+    };
 
     const startTimer = () => {
         const duration = 60;
@@ -70,6 +122,24 @@ export const ResetVerifyPage = () => {
 
     const handleResend = async () => {
         if (!canResend || isLoading) return;
+
+        // Rate Limit Check
+        const deviceId = localStorage.getItem('allify_device_id');
+        if (deviceId) {
+            const check = await api.checkResetPermission(deviceId, 'resend');
+            if (check && check.status === 'error') {
+                setIsResendLocked(true);
+                setCanResend(false);
+
+                // Persist lock if cooldown returned
+                if (check.cooldown_remaining) {
+                    const lockExpiry = Date.now() + (check.cooldown_remaining * 1000);
+                    localStorage.setItem('allify_resend_locked_until', lockExpiry.toString());
+                    setTimeLeft(check.cooldown_remaining);
+                }
+                return;
+            }
+        }
 
         setError(null);
         startTimer();
@@ -232,19 +302,35 @@ export const ResetVerifyPage = () => {
                                 </button>
 
                                 <div className="text-center pt-4">
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-sm text-gray-400">
                                         Didn't receive the code?{' '}
                                         <button
                                             onClick={handleResend}
-                                            disabled={!canResend}
-                                            className={`transition-colors underline ${canResend
+                                            disabled={!canResend || isResendLocked}
+                                            className={`transition-colors underline ${canResend && !isResendLocked
                                                 ? 'text-indigo-400 hover:text-indigo-300 cursor-pointer'
                                                 : 'text-gray-500 cursor-not-allowed no-underline'
                                                 }`}
                                         >
-                                            {canResend ? 'Resend' : `Try again in ${timeLeft}s`}
+                                            {isResendLocked
+                                                ? `Try again in ${formatTime(timeLeft)}`
+                                                : canResend
+                                                    ? 'Resend'
+                                                    : `Try again in ${timeLeft}s`
+                                            }
                                         </button>
                                     </p>
+                                    {isResendLocked && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-left"
+                                        >
+                                            <p className="text-xs text-red-300 leading-relaxed font-medium">
+                                                You’ve reached the resend limit. Please enter the code already sent. If you didn’t receive it, go back and restart the verification process.
+                                            </p>
+                                        </motion.div>
+                                    )}
                                 </div>
                             </div>
 

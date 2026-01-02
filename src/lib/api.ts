@@ -29,5 +29,22 @@ export const api = {
             console.error('Secure Action Error:', error);
             return null;
         }
+    },
+
+    checkResetPermission: async (deviceId: string, action: string = "request", checkOnly: boolean = false) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/security/request-reset`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ device_id: deviceId, action, check_only: checkOnly }),
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Permission Check Error:', error);
+            // Default to allowed if backend is unreachable to avoid blocking legitimate users during outages
+            return { status: "allowed" };
+        }
     }
 };

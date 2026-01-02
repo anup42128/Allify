@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
 import { SocialGraph } from '../../../components/ui/SocialGraph';
 import { useReset } from '../contexts/ResetContext';
+import { api } from '../../../lib/api';
 
 export const ForgotPasswordPage = () => {
     const navigate = useNavigate();
@@ -12,10 +13,57 @@ export const ForgotPasswordPage = () => {
     const [identifier, setIdentifier] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [cooldownTimeLeft, setCooldownTimeLeft] = useState(0);
 
-    // Clear reset state on enter
+    // Initialize timer from localStorage on mount
+    useEffect(() => {
+        const storedExpiry = localStorage.getItem('allify_reset_cooldown_expiry');
+        if (storedExpiry) {
+            const expiry = parseInt(storedExpiry, 10);
+            const now = Date.now();
+            if (expiry > now) {
+                setCooldownTimeLeft(Math.ceil((expiry - now) / 1000));
+            } else {
+                localStorage.removeItem('allify_reset_cooldown_expiry');
+            }
+        }
+    }, []);
+
+    // Timer countdown effect - Uses absolute time to prevent drift/pausing
+    useEffect(() => {
+        if (cooldownTimeLeft <= 0) return;
+
+        const syncTimer = () => {
+            const storedExpiry = localStorage.getItem('allify_reset_cooldown_expiry');
+            if (storedExpiry) {
+                const expiry = parseInt(storedExpiry, 10);
+                const now = Date.now();
+                const remaining = Math.ceil((expiry - now) / 1000);
+
+                if (remaining <= 0) {
+                    localStorage.removeItem('allify_reset_cooldown_expiry');
+                    setCooldownTimeLeft(0);
+                } else {
+                    setCooldownTimeLeft(remaining);
+                }
+            } else {
+                setCooldownTimeLeft(0);
+            }
+        };
+
+        const interval = setInterval(syncTimer, 1000);
+        return () => clearInterval(interval);
+    }, [cooldownTimeLeft]);
+
+    // Clear reset state on enter and ensure Device ID exists
     useEffect(() => {
         resetFlow();
+
+        // Generate stable Device ID if missing
+        if (!localStorage.getItem('allify_device_id')) {
+            const newDeviceId = crypto.randomUUID ? crypto.randomUUID() : `device_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            localStorage.setItem('allify_device_id', newDeviceId);
+        }
     }, []);
 
     const handleSendOTP = async () => {
@@ -23,9 +71,9 @@ export const ForgotPasswordPage = () => {
         setMessage(null);
 
         try {
-            let resetEmail = identifier;
             const isEmail = identifier.includes('@');
-            let foundUsername = identifier;
+            let resetEmail = '';
+            let foundUsername = '';
 
             if (!isEmail) {
                 // Lookup email by username
@@ -56,6 +104,30 @@ export const ForgotPasswordPage = () => {
                     return;
                 }
                 foundUsername = profile.username;
+                resetEmail = identifier;
+            }
+
+            // 1. Security Check: Device Rate Limiting (Check only AFTER validation passes)
+            const deviceId = localStorage.getItem('allify_device_id');
+            if (deviceId) {
+                const permission = await api.checkResetPermission(deviceId);
+                if (permission && permission.status === 'error') {
+                    // Sync local timer if backend provides remaining time
+                    if (permission.cooldown_remaining) {
+                        const remaining = permission.cooldown_remaining;
+                        setCooldownTimeLeft(remaining);
+                        const expiry = Date.now() + (remaining * 1000);
+                        localStorage.setItem('allify_reset_cooldown_expiry', expiry.toString());
+                    }
+
+                    // Block request if rate limit exceeded
+                    setMessage({
+                        type: 'error',
+                        text: permission.message || "Too many attempts. Please try again later."
+                    });
+                    setIsLoading(false);
+                    return;
+                }
             }
 
             // Trigger password reset OTP from Supabase
@@ -67,6 +139,11 @@ export const ForgotPasswordPage = () => {
                 setMessage({ type: 'error', text: error.message });
             } else {
                 // Success: Update context and move to next step
+                // Set 150s cooldown (2m 30s)
+                const COOLDOWN_SECONDS = 150;
+                setCooldownTimeLeft(COOLDOWN_SECONDS);
+                localStorage.setItem('allify_reset_cooldown_expiry', (Date.now() + COOLDOWN_SECONDS * 1000).toString());
+
                 setIdentity(resetEmail, foundUsername);
                 setStep('verifying');
                 generateToken();
@@ -147,7 +224,7 @@ export const ForgotPasswordPage = () => {
 
                                 <button
                                     onClick={handleSendOTP}
-                                    disabled={isLoading || !identifier.trim()}
+                                    disabled={isLoading || !identifier.trim() || cooldownTimeLeft > 0}
                                     className="w-full px-8 py-3.5 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6"
                                 >
                                     {isLoading ? (
@@ -156,7 +233,14 @@ export const ForgotPasswordPage = () => {
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
                                     ) : null}
-                                    <span>{isLoading ? 'Searching...' : 'Recover Account'}</span>
+                                    <span>
+                                        {isLoading
+                                            ? 'Searching...'
+                                            : cooldownTimeLeft > 0
+                                                ? `Wait ${Math.floor(cooldownTimeLeft / 60)}m ${cooldownTimeLeft % 60}s`
+                                                : 'Recover Account'
+                                        }
+                                    </span>
                                 </button>
 
                                 <div className="relative flex py-4 items-center">
