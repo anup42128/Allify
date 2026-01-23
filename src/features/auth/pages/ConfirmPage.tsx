@@ -112,12 +112,12 @@ export const ConfirmPage = () => {
             }
 
             // Success
-            allowRoute('/sample');
+            allowRoute('/home');
             removeRoute('/auth/signup/confirm'); // Block access to confirmation page
 
             // Small delay to ensure allowedRoutes state propagates to ProtectedRoute
             setTimeout(() => {
-                navigate('/sample', { replace: true });
+                navigate('/home', { replace: true });
             }, 100);
         } catch (err) {
             console.error("Verification error:", err);
@@ -192,7 +192,7 @@ export const ConfirmPage = () => {
                             {/* Additional Info */}
                             <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
                                 <p className="text-xs text-gray-400 text-center leading-relaxed">
-                                    We've sent a 6-digit verification code to your email address. Please check your inbox and enter the code below.
+                                    We've sent a 6-digit verification code to <span className="text-white font-bold">{signupFormData.email}</span>. Please check your inbox and enter the code below.
                                 </p>
                             </div>
 

@@ -8,8 +8,12 @@ export const SocialGraph = () => {
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
             >
-                {/* Defining gradients */}
+                {/* Defining Glow Gradients for nodes */}
                 <defs>
+                    <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="currentColor" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                    </radialGradient>
                     <linearGradient id="line-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" stopColor="rgba(99, 102, 241, 0)" />
                         <stop offset="50%" stopColor="rgba(99, 102, 241, 0.5)" />
@@ -25,29 +29,32 @@ export const SocialGraph = () => {
                     style={{ opacity: 1 }}
                 />
 
-                {/* Floating Nodes */}
+                {/* Floating Nodes with Glow */}
                 {[
-                    { cx: 400, cy: 300, r: 20 }, // Center
-                    { cx: 200, cy: 150, r: 12 },
-                    { cx: 600, cy: 150, r: 15 },
-                    { cx: 200, cy: 450, r: 10 },
-                    { cx: 600, cy: 450, r: 14 },
-                    { cx: 100, cy: 300, r: 8 },
-                    { cx: 700, cy: 300, r: 8 },
-                    { cx: 400, cy: 100, r: 6 },
-                    { cx: 400, cy: 500, r: 8 },
+                    { cx: 400, cy: 300, r: 20, glow: 50 }, // Center
+                    { cx: 200, cy: 150, r: 12, glow: 35 },
+                    { cx: 600, cy: 150, r: 15, glow: 40 },
+                    { cx: 200, cy: 450, r: 10, glow: 30 },
+                    { cx: 600, cy: 450, r: 14, glow: 38 },
+                    { cx: 100, cy: 300, r: 8, glow: 25 },
+                    { cx: 700, cy: 300, r: 8, glow: 25 },
+                    { cx: 400, cy: 100, r: 6, glow: 20 },
+                    { cx: 400, cy: 500, r: 8, glow: 25 },
                 ].map((node, i) => (
-                    <circle
-                        key={i}
-                        cx={node.cx}
-                        cy={node.cy}
-                        r={node.r}
-                        fill="currentColor"
-                        style={{
-                            opacity: 1,
-                            filter: 'drop-shadow(0 0 15px currentColor) drop-shadow(0 0 5px currentColor)'
-                        }}
-                    />
+                    <g key={i}>
+                        <circle
+                            cx={node.cx}
+                            cy={node.cy}
+                            r={node.glow}
+                            fill="url(#node-glow)"
+                        />
+                        <circle
+                            cx={node.cx}
+                            cy={node.cy}
+                            r={node.r}
+                            fill="currentColor"
+                        />
+                    </g>
                 ))}
 
                 {/* Connecting faint lines forming a mesh */}

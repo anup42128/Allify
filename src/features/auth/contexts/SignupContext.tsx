@@ -27,18 +27,28 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     // Load initial state from localStorage
     const [allowedRoutes, setAllowedRoutes] = useState<Set<string>>(() => {
         const stored = localStorage.getItem(STORAGE_KEY_ROUTES);
-        const baseRoutes = new Set(['/', '/auth/signup']); // Landing and signup are always accessible
+        const baseRoutes = new Set([
+            '/', '/auth/signup',
+            '/home', '/profile', '/profile/edit', '/search',
+            '/messages', '/notifications', '/settings', '/create', '/more'
+        ]); // All main app routes are accessible
         const currentPath = window.location.pathname; // Get current URL path
 
         if (stored) {
             try {
                 const routes = JSON.parse(stored);
+                // Normalize current path by removing basename for comparison
+                const basename = '/Allify';
+                const normalizedPath = currentPath.startsWith(basename)
+                    ? currentPath.slice(basename.length) || '/'
+                    : currentPath;
+
                 // Filter out temporary routes, but keep the current page if user is already on it (refresh)
                 const filteredRoutes = routes.filter((route: string) => {
-                    // If user is on confirmation or sample page (refresh), keep that route
-                    if (route === currentPath) return true;
+                    // If user is on confirmation page (refresh), keep that route
+                    if (route === normalizedPath) return true;
                     // Otherwise, filter out temporary routes
-                    return route !== '/auth/signup/confirm' && route !== '/sample';
+                    return route !== '/auth/signup/confirm';
                 });
                 // Merge with base routes
                 filteredRoutes.forEach((route: string) => baseRoutes.add(route));
