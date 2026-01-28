@@ -31,11 +31,11 @@ CREATE POLICY "Users can post comments."
         )
     );
 
-CREATE POLICY "Users can delete their own comments." 
+CREATE POLICY "Users can delete comments on their own posts or their own comments." 
     ON public.comments FOR DELETE USING (
         EXISTS (
             SELECT 1 FROM public.profiles 
-            WHERE username = comments.username 
+            WHERE (username = comments.username OR username = comments.post_author_username)
             AND id = auth.uid()
         )
     );

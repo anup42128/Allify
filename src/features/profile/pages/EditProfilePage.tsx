@@ -416,6 +416,7 @@ export const EditProfilePage = () => {
                         image={tempImage}
                         onCropComplete={handleCropComplete}
                         onCancel={() => setTempImage(null)}
+                        maxDimension={1080}
                     />
                 )}
             </AnimatePresence>

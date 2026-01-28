@@ -112,14 +112,43 @@ export const ProfilePage = () => {
 
         setIsLoadingPosts(true);
         try {
-            const { data, error } = await supabase
+            // 1. Fetch posts (includes the new likes_count column)
+            const { data: postsData, error: postsError } = await supabase
                 .from('posts')
                 .select('*')
                 .eq('username', targetUsername)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setPosts(data || []);
+            if (postsError) throw postsError;
+
+            let enrichedPosts = postsData || [];
+
+            // 2. Pre-fetch "is liked by me" status for all posts in the grid
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user && enrichedPosts.length > 0) {
+                // Get the current viewer's username
+                const { data: currentUserProfile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (currentUserProfile) {
+                    const { data: userLikes } = await supabase
+                        .from('likes')
+                        .select('post_id')
+                        .eq('username', currentUserProfile.username)
+                        .in('post_id', enrichedPosts.map(p => p.id));
+
+                    const likedPostIds = new Set(userLikes?.map(l => l.post_id) || []);
+                    enrichedPosts = enrichedPosts.map(p => ({
+                        ...p,
+                        is_liked_by_me: likedPostIds.has(p.id)
+                    }));
+                }
+            }
+
+            setPosts(enrichedPosts);
         } catch (err) {
             console.error("Error fetching posts:", err);
         } finally {
@@ -233,14 +262,31 @@ export const ProfilePage = () => {
                             className={`w-40 h-40 rounded-full bg-zinc-900 flex items-center justify-center border-[1px] border-zinc-700 relative z-10 overflow-hidden transition-all ${profile.avatar_url ? 'cursor-pointer hover:opacity-90' : ''} ${isUploading ? 'opacity-50' : ''}`}
                         >
                             {profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                                <>
+                                    {/* Loading State for Avatar */}
+                                    <div id="avatar-loader" className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                                        <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
+                                        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
+                                    </div>
+                                    <img
+                                        src={profile.avatar_url}
+                                        alt={profile.username}
+                                        className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                                        onLoad={(e) => {
+                                            const img = e.target as HTMLImageElement;
+                                            img.classList.remove('opacity-0');
+                                            img.classList.add('opacity-100');
+                                            document.getElementById('avatar-loader')?.classList.add('hidden');
+                                        }}
+                                    />
+                                </>
                             ) : (
                                 <svg viewBox="0 0 24 24" fill="currentColor" className="w-24 h-24 text-zinc-600">
                                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                                 </svg>
                             )}
                             {isUploading && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40">
                                     <div className="animate-spin h-8 w-8 border-4 border-white border-t-transparent rounded-full"></div>
                                 </div>
                             )}
@@ -385,8 +431,25 @@ export const ProfilePage = () => {
                                 onClick={() => setSelectedPost(post)}
                                 className="relative aspect-square bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-900 group/post hover:border-zinc-700 transition-colors cursor-pointer"
                             >
-                                <img src={post.image_url} alt={post.caption} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/post:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                {/* Loading State (Spinner + Pulse) */}
+                                <div id={`loader-${post.id}`} className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                                    <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
+                                    <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
+                                </div>
+
+                                <img
+                                    src={post.image_url}
+                                    alt={post.caption}
+                                    className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                                    onLoad={(e) => {
+                                        const img = e.target as HTMLImageElement;
+                                        img.classList.remove('opacity-0');
+                                        img.classList.add('opacity-100');
+                                        document.getElementById(`loader-${post.id}`)?.classList.add('hidden');
+                                    }}
+                                />
+
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/post:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-30">
                                     <div className="flex gap-4 text-white font-bold">
                                         <div className="flex items-center gap-1">
                                             <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
@@ -440,16 +503,28 @@ export const ProfilePage = () => {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative aspect-square w-full max-w-[600px] overflow-hidden rounded-[2.5rem] border border-zinc-800 shadow-2xl"
+                            className="relative aspect-square w-full max-w-[600px] overflow-hidden rounded-[2.5rem] border border-zinc-800 shadow-2xl bg-zinc-950"
                         >
+                            {/* Loading State for Avatar Viewer */}
+                            <div id="avatar-viewer-loader" className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                                <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
+                                <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
+                            </div>
+
                             <img
                                 src={profile.avatar_url}
                                 alt={profile.username}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                                onLoad={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.classList.remove('opacity-0');
+                                    img.classList.add('opacity-100');
+                                    document.getElementById('avatar-viewer-loader')?.classList.add('hidden');
+                                }}
                             />
                             <button
                                 onClick={() => setShowImageViewer(false)}
-                                className="absolute top-6 right-6 w-12 h-12 rounded-full bg-black/50 backdrop-blur-md text-white border border-white/10 flex items-center justify-center hover:bg-black/70 transition-colors"
+                                className="absolute top-6 right-6 w-12 h-12 rounded-full bg-black/50 backdrop-blur-md text-white border border-white/10 flex items-center justify-center hover:bg-black/70 transition-colors z-30"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -467,6 +542,7 @@ export const ProfilePage = () => {
                         image={tempImage}
                         onCropComplete={handleCropComplete}
                         onCancel={() => setTempImage(null)}
+                        maxDimension={1080}
                     />
                 )}
             </AnimatePresence>

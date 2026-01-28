@@ -11,8 +11,8 @@ interface PostViewerModalProps {
 }
 
 export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostViewerModalProps) => {
-    const [isLiked, setIsLiked] = useState(false);
-    const [likeCount, setLikeCount] = useState(0);
+    const [isLiked, setIsLiked] = useState(post.is_liked_by_me || false);
+    const [likeCount, setLikeCount] = useState(post.likes_count || 0);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [imageAspect, setImageAspect] = useState<number | null>(null);
@@ -23,8 +23,6 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
 
     useEffect(() => {
         if (!post) return;
-        checkLikeStatus();
-        fetchLikeCount();
         fetchComments();
 
         // Detect image aspect ratio
@@ -35,25 +33,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
         };
     }, [post]);
 
-    const checkLikeStatus = async () => {
-        if (!currentUser || !post) return;
-        const { data } = await supabase
-            .from('likes')
-            .select('*')
-            .eq('post_id', post.id)
-            .eq('username', currentUser.username)
-            .single();
-        setIsLiked(!!data);
-    };
 
-    const fetchLikeCount = async () => {
-        if (!post) return;
-        const { count } = await supabase
-            .from('likes')
-            .select('*', { count: 'exact', head: true })
-            .eq('post_id', post.id);
-        setLikeCount(count || 0);
-    };
 
     const fetchComments = async () => {
         if (!post) return;
@@ -78,7 +58,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
 
         const newLikedState = !isLiked;
         setIsLiked(newLikedState);
-        setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
+        setLikeCount((prev: number) => newLikedState ? prev + 1 : prev - 1);
 
         try {
             if (newLikedState) {
@@ -97,7 +77,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
             console.error("Error toggling like:", error);
             // Revert on error
             setIsLiked(!newLikedState);
-            setLikeCount(prev => newLikedState ? prev - 1 : prev + 1);
+            setLikeCount((prev: number) => newLikedState ? prev - 1 : prev + 1);
         }
     };
 
@@ -123,12 +103,28 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
 
             if (error) throw error;
 
-            setComments(prev => [...prev, data]);
+            setComments((prev: any[]) => [...prev, data]);
             setNewComment('');
         } catch (error) {
             console.error("Error posting comment:", error);
         } finally {
             setIsSubmittingComment(false);
+        }
+    };
+
+    const handleDeleteComment = async (commentId: string) => {
+        try {
+            const { error } = await supabase
+                .from('comments')
+                .delete()
+                .eq('id', commentId);
+
+            if (error) throw error;
+
+            setComments((prev: any[]) => prev.filter(c => c.id !== commentId));
+        } catch (error) {
+            console.error("Error deleting comment:", error);
+            alert("Failed to delete comment");
         }
     };
 
@@ -140,11 +136,24 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
         if (!post) return;
         setIsDeleting(true);
         try {
-            const urlPath = post.image_url.split('/posts/')[1];
-            if (urlPath) {
-                await supabase.storage.from('posts').remove([urlPath]);
+            // 1. Extract path from URL more robustly
+            // URL format: .../storage/v1/object/public/posts/userid/timestamp.jpg
+            const urlParts = post.image_url.split('/posts/');
+            if (urlParts.length > 1) {
+                const pathWithParams = urlParts[1];
+                // Remove any query parameters (?t=...)
+                const cleanPath = pathWithParams.split('?')[0];
+
+                const { error: storageError } = await supabase.storage
+                    .from('posts')
+                    .remove([cleanPath]);
+
+                if (storageError) {
+                    console.error("Storage deletion error:", storageError);
+                }
             }
 
+            // 2. Delete database record
             const { error } = await supabase.from('posts').delete().eq('id', post.id);
             if (error) throw error;
 
@@ -178,7 +187,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
                 {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-20 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/80 transition-colors md:hidden"
+                    className="absolute top-4 right-4 z-30 p-2 bg-black/50 backdrop-blur text-white rounded-full hover:bg-black/80 transition-colors md:hidden"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -186,10 +195,22 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
                 {/* Left: Image Container */}
                 <div className={`relative bg-zinc-950 flex items-center justify-center overflow-hidden h-[40vh] md:h-full transition-all duration-300 ${isPortrait ? 'w-full md:aspect-[4/5]' : 'w-full md:aspect-square md:max-w-[70vh]'
                     }`}>
+                    {/* Loading State (Spinner + Pulse) */}
+                    <div id={`modal-loader-${post.id}`} className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                        <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
+                        <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
+                    </div>
+
                     <img
                         src={post.image_url}
                         alt={post.caption}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                        onLoad={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            img.classList.remove('opacity-0');
+                            img.classList.add('opacity-100');
+                            document.getElementById(`modal-loader-${post.id}`)?.classList.add('hidden');
+                        }}
                     />
                 </div>
 
@@ -263,11 +284,21 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
                                                     )}
                                                 </div>
                                                 <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-white font-bold text-xs">{comment.profiles?.username}</span>
-                                                        <span className="text-zinc-500 text-[10px]">
-                                                            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                                                        </span>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-white font-bold text-xs">{comment.profiles?.username}</span>
+                                                            <span className="text-zinc-500 text-[10px]">
+                                                                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                                                            </span>
+                                                        </div>
+                                                        {(comment.username === currentUser?.username || post.username === currentUser?.username) && (
+                                                            <button
+                                                                onClick={() => handleDeleteComment(comment.id)}
+                                                                className="text-zinc-600 hover:text-red-500 transition-colors p-1"
+                                                            >
+                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                                            </button>
+                                                        )}
                                                     </div>
                                                     <p className="text-zinc-300 text-sm leading-snug">{comment.content}</p>
                                                 </div>

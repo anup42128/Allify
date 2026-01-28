@@ -8,6 +8,8 @@ interface ImageCropperProps {
     onCancel: () => void;
     aspect?: number;
     cropShape?: 'round' | 'rect';
+    showAspectSelector?: boolean;
+    maxDimension?: number;
 }
 
 const ImageCropper: React.FC<ImageCropperProps> = ({
@@ -15,7 +17,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     onCropComplete,
     onCancel,
     aspect = 1,
-    cropShape = 'round'
+    cropShape = 'round',
+    showAspectSelector = false,
+    maxDimension
 }) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
@@ -53,8 +57,31 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
         if (!ctx) return null;
 
-        canvas.width = pixelCrop.width;
-        canvas.height = pixelCrop.height;
+        // Calculate output dimensions
+        let targetWidth = pixelCrop.width;
+        let targetHeight = pixelCrop.height;
+
+        if (maxDimension) {
+            const ratio = pixelCrop.width / pixelCrop.height;
+            if (pixelCrop.width > pixelCrop.height) {
+                if (pixelCrop.width > maxDimension) {
+                    targetWidth = maxDimension;
+                    targetHeight = maxDimension / ratio;
+                }
+            } else {
+                if (pixelCrop.height > maxDimension) {
+                    targetHeight = maxDimension;
+                    targetWidth = maxDimension * ratio;
+                }
+            }
+        }
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        // Enable high-quality smoothing for sharp resizing
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         ctx.drawImage(
             image,
@@ -64,14 +91,14 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
             pixelCrop.height,
             0,
             0,
-            pixelCrop.width,
-            pixelCrop.height
+            targetWidth,
+            targetHeight
         );
 
         return new Promise((resolve) => {
             canvas.toBlob((blob) => {
                 resolve(blob);
-            }, 'image/jpeg');
+            }, 'image/jpeg', 0.9); // 90% quality: The "sweet spot" for HD clarity + small file size
         });
     };
 
@@ -109,20 +136,22 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
             <div className="p-10 flex flex-col items-center gap-8">
                 {/* Aspect Ratio Selector */}
-                <div className="flex gap-4 p-1 bg-zinc-900 rounded-full border border-zinc-800">
-                    <button
-                        onClick={() => setCurrentAspect(1)}
-                        className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 1 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-                    >
-                        1:1
-                    </button>
-                    <button
-                        onClick={() => setCurrentAspect(4 / 5)}
-                        className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 4 / 5 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-                    >
-                        4:5
-                    </button>
-                </div>
+                {showAspectSelector && (
+                    <div className="flex gap-4 p-1 bg-zinc-900 rounded-full border border-zinc-800">
+                        <button
+                            onClick={() => setCurrentAspect(1)}
+                            className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 1 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                            1:1
+                        </button>
+                        <button
+                            onClick={() => setCurrentAspect(4 / 5)}
+                            className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 4 / 5 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                            4:5
+                        </button>
+                    </div>
+                )}
 
                 <div className="w-full max-w-xs">
                     <input

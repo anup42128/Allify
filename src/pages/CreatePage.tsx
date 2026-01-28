@@ -1,11 +1,9 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import ImageCropper from '../components/ui/ImageCropper';
 
 export const CreatePage = () => {
-    const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [step, setStep] = useState<'select' | 'crop' | 'details'>('select');
@@ -76,8 +74,8 @@ export const CreatePage = () => {
 
             if (insertError) throw insertError;
 
-            // 4. Navigate to profile
-            navigate('/profile', { state: { refresh: true } });
+            // 4. Force hard refresh navigation to profile
+            window.location.href = '/Allify/profile';
 
         } catch (error: any) {
             console.error("Error creating post:", error);
@@ -136,6 +134,8 @@ export const CreatePage = () => {
                         }}
                         aspect={1} // Default square aspect ratio
                         cropShape="rect"
+                        showAspectSelector={true}
+                        maxDimension={2048}
                     />
                 )}
 
