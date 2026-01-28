@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import ImageCropper from '../../../components/ui/ImageCropper';
+import { PostDetailModal } from '../components/PostDetailModal';
 
 const BADGE_CONFIG: Record<string, { icon: React.ReactNode, label: string, color: string, bg: string, border: string }> = {
     verified: {
@@ -44,7 +45,9 @@ const BADGE_CONFIG: Record<string, { icon: React.ReactNode, label: string, color
 
 export const ProfilePage = () => {
     const navigate = useNavigate();
+    const location = useLocation(); // Hook to access navigation state
     const [profile, setProfile] = useState<{
+        id: string;
         username: string;
         full_name: string;
         bio: string;
@@ -53,64 +56,102 @@ export const ProfilePage = () => {
         website: string | null;
         badges: string[];
     } | null>(null);
-    const stats = {
-        posts: 0,
-        allies: 0,
-        alling: 0,
-        allied: 0
-    };
+    const [posts, setPosts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
     const [showImageViewer, setShowImageViewer] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [tempImage, setTempImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            setIsLoading(true);
-            try {
-                const { data } = await supabase.auth.getSession();
-                const session = data.session;
+    const stats = {
+        posts: posts.length,
+        allies: 0,
+        alling: 0,
+        allied: 0
+    };
 
-                if (session?.user) {
-                    const { data } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', session.user.id)
-                        .single();
+    const fetchProfile = async () => {
+        try {
+            const { data } = await supabase.auth.getSession();
+            const session = data.session;
 
-                    if (data) {
-                        setProfile({
-                            username: data.username || 'user',
-                            full_name: data.full_name || data.fullname || data.username || 'Allify User',
-                            bio: data.bio || "Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨",
-                            avatar_url: data.avatar_url || null,
-                            location: data.location || null,
-                            website: data.website || null,
-                            badges: data.badges || []
-                        });
-                    }
+            if (session?.user) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (data) {
+                    const profileData = {
+                        id: session.user.id,
+                        username: data.username || 'user',
+                        full_name: data.full_name || data.fullname || data.username || 'Allify User',
+                        bio: data.bio || "Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨",
+                        avatar_url: data.avatar_url || null,
+                        location: data.location || null,
+                        website: data.website || null,
+                        badges: data.badges || []
+                    };
+                    setProfile(profileData);
+                    fetchPosts(profileData.username);
                 }
-            } catch (err) {
-                console.error("Unexpected error in fetchProfile:", err);
-            } finally {
-                setIsLoading(false);
             }
-        };
+        } catch (err) {
+            console.error("Unexpected error in fetchProfile:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
+    const fetchPosts = async (username?: string) => {
+        const targetUsername = username || profile?.username;
+        if (!targetUsername) return;
+
+        setIsLoadingPosts(true);
+        try {
+            const { data, error } = await supabase
+                .from('posts')
+                .select('*')
+                .eq('username', targetUsername)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setPosts(data || []);
+        } catch (err) {
+            console.error("Error fetching posts:", err);
+        } finally {
+            setIsLoadingPosts(false);
+        }
+    };
+
+    useEffect(() => {
         fetchProfile();
+        fetchPosts();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event) => {
             if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
                 fetchProfile();
             } else if (_event === 'SIGNED_OUT') {
                 setProfile(null);
+                setPosts([]);
                 setIsLoading(false);
             }
         });
 
         return () => subscription.unsubscribe();
     }, []);
+
+    // Effect to refresh posts if navigated from CreatePage
+    useEffect(() => {
+        if (location.state?.refresh) {
+            fetchPosts();
+            // Clear the state so it doesn't refresh on every render if we stay here
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     const handleAvatarClick = () => {
         if (profile?.avatar_url) {
@@ -157,6 +198,10 @@ export const ProfilePage = () => {
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const handlePostDelete = (deletedPostId: string) => {
+        setPosts(prev => prev.filter(p => p.id !== deletedPostId));
     };
 
     if (isLoading) {
@@ -327,19 +372,61 @@ export const ProfilePage = () => {
                     ))}
                 </div>
 
-                {/* Empty State - Add First Post */}
-                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-[2.5rem] bg-zinc-900/20 group/empty hover:bg-zinc-900/30 transition-all cursor-pointer">
-                    <div className="w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5 transition-all duration-300">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-zinc-500 group-hover/empty:text-white transition-colors">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
+                {/* Posts Grid or Empty State */}
+                {isLoadingPosts ? (
+                    <div className="flex justify-center py-20">
+                        <div className="animate-spin h-8 w-8 border-4 border-zinc-800 border-t-white rounded-full"></div>
                     </div>
-                    <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">Add your first post</p>
-                </div>
+                ) : posts.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {posts.map((post) => (
+                            <div
+                                key={post.id}
+                                onClick={() => setSelectedPost(post)}
+                                className="relative aspect-square bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-900 group/post hover:border-zinc-700 transition-colors cursor-pointer"
+                            >
+                                <img src={post.image_url} alt={post.caption} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/post:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                    <div className="flex gap-4 text-white font-bold">
+                                        <div className="flex items-center gap-1">
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                                            <span>0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div
+                        onClick={() => navigate('/create')}
+                        className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-[2.5rem] bg-zinc-900/20 group/empty hover:bg-zinc-900/30 transition-all cursor-pointer"
+                    >
+                        <div className="w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5 transition-all duration-300">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-zinc-500 group-hover/empty:text-white transition-colors">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                        </div>
+                        <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">Add your first post</p>
+                    </div>
+                )}
             </div>
+
+            {/* Post Viewer Modal */}
+            <AnimatePresence>
+                {selectedPost && profile && (
+                    <PostDetailModal
+                        post={selectedPost}
+                        currentUser={profile}
+                        onClose={() => setSelectedPost(null)}
+                        onDelete={handlePostDelete}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Image Viewer Modal */}
             <AnimatePresence>
+                {/* Only need this for Avatar now */}
                 {showImageViewer && profile?.avatar_url && (
                     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
                         <motion.div

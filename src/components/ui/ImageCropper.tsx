@@ -6,11 +6,20 @@ interface ImageCropperProps {
     image: string;
     onCropComplete: (croppedImage: Blob) => void;
     onCancel: () => void;
+    aspect?: number;
+    cropShape?: 'round' | 'rect';
 }
 
-const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCancel }) => {
+const ImageCropper: React.FC<ImageCropperProps> = ({
+    image,
+    onCropComplete,
+    onCancel,
+    aspect = 1,
+    cropShape = 'round'
+}) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
+    const [currentAspect, setCurrentAspect] = useState(aspect);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
 
     const onCropChange = (crop: { x: number; y: number }) => {
@@ -89,9 +98,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCa
                     image={image}
                     crop={crop}
                     zoom={zoom}
-                    aspect={1}
-                    cropShape="round"
-                    showGrid={false}
+                    aspect={currentAspect}
+                    cropShape={cropShape}
+                    showGrid={true}
                     onCropChange={onCropChange}
                     onCropComplete={onCropCompleteInternal}
                     onZoomChange={onZoomChange}
@@ -99,6 +108,22 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCa
             </div>
 
             <div className="p-10 flex flex-col items-center gap-8">
+                {/* Aspect Ratio Selector */}
+                <div className="flex gap-4 p-1 bg-zinc-900 rounded-full border border-zinc-800">
+                    <button
+                        onClick={() => setCurrentAspect(1)}
+                        className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 1 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                        1:1
+                    </button>
+                    <button
+                        onClick={() => setCurrentAspect(4 / 5)}
+                        className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 4 / 5 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                    >
+                        4:5
+                    </button>
+                </div>
+
                 <div className="w-full max-w-xs">
                     <input
                         type="range"
@@ -123,7 +148,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({ image, onCropComplete, onCa
                         onClick={handleDone}
                         className="flex-1 py-4 rounded-full bg-white text-black font-bold text-sm tracking-widest hover:bg-zinc-200 transition-colors uppercase"
                     >
-                        Set Profile Picture
+                        Done
                     </button>
                 </div>
             </div>
