@@ -10,6 +10,7 @@ interface ImageCropperProps {
     cropShape?: 'round' | 'rect';
     showAspectSelector?: boolean;
     maxDimension?: number;
+    isVideo?: boolean;
 }
 
 const ImageCropper: React.FC<ImageCropperProps> = ({
@@ -19,7 +20,8 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     aspect = 1,
     cropShape = 'round',
     showAspectSelector = false,
-    maxDimension
+    maxDimension,
+    isVideo = false
 }) => {
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
@@ -47,11 +49,22 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
             image.src = url;
         });
 
+    const createVideo = (url: string): Promise<HTMLVideoElement> =>
+        new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.addEventListener('loadeddata', () => resolve(video));
+            video.addEventListener('error', (error) => reject(error));
+            video.src = url;
+            video.muted = true;
+            video.play();
+        });
+
     const getCroppedImg = async (
         imageSrc: string,
-        pixelCrop: any
+        pixelCrop: any,
+        isMediaVideo: boolean
     ): Promise<Blob | null> => {
-        const image = await createImage(imageSrc);
+        const source = isMediaVideo ? await createVideo(imageSrc) : await createImage(imageSrc);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -79,12 +92,11 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         canvas.width = targetWidth;
         canvas.height = targetHeight;
 
-        // Enable high-quality smoothing for sharp resizing
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
         ctx.drawImage(
-            image,
+            source,
             pixelCrop.x,
             pixelCrop.y,
             pixelCrop.width,
@@ -98,13 +110,13 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         return new Promise((resolve) => {
             canvas.toBlob((blob) => {
                 resolve(blob);
-            }, 'image/jpeg', 0.9); // 90% quality: The "sweet spot" for HD clarity + small file size
+            }, 'image/jpeg', 0.9);
         });
     };
 
     const handleDone = async () => {
         try {
-            const croppedImage = await getCroppedImg(image, croppedAreaPixels);
+            const croppedImage = await getCroppedImg(image, croppedAreaPixels, isVideo);
             if (croppedImage) {
                 onCropComplete(croppedImage);
             }
@@ -122,7 +134,8 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         >
             <div className="relative flex-1 bg-zinc-950 rounded-[2rem] overflow-hidden border border-zinc-800">
                 <Cropper
-                    image={image}
+                    image={!isVideo ? image : undefined}
+                    video={isVideo ? image : undefined}
                     crop={crop}
                     zoom={zoom}
                     aspect={currentAspect}

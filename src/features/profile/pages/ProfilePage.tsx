@@ -63,6 +63,7 @@ export const ProfilePage = () => {
     const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [tempImage, setTempImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Saved' | 'Likes'>('Photos');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const stats = {
@@ -229,9 +230,21 @@ export const ProfilePage = () => {
         }
     };
 
+    const handleLikeUpdate = (postId: string, isLiked: boolean, likeCount: number) => {
+        setPosts(prev => prev.map(p =>
+            p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
+        ));
+    };
+
     const handlePostDelete = (deletedPostId: string) => {
         setPosts(prev => prev.filter(p => p.id !== deletedPostId));
     };
+
+    const filteredPosts = posts.filter(post => {
+        if (activeTab === 'Photos') return post.type === 'photo' || !post.type;
+        if (activeTab === 'Videos') return post.type === 'video';
+        return false; // Saved and Likes are placeholders for now
+    });
 
     if (isLoading) {
         return (
@@ -408,12 +421,13 @@ export const ProfilePage = () => {
 
                 {/* Custom Tab Navigation */}
                 <div className="flex justify-center mb-8 bg-zinc-900/30 p-1 rounded-full w-fit mx-auto border border-zinc-800/50">
-                    {['Posts', 'Videos', 'Saved', 'Likes'].map((tab) => (
+                    {['Photos', 'Videos', 'Saved', 'Likes'].map((tab) => (
                         <button
                             key={tab}
-                            className={`px-8 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${tab === 'Posts' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`px-8 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${activeTab === tab ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
                         >
-                            {tab.toUpperCase()}
+                            {tab}
                         </button>
                     ))}
                 </div>
@@ -423,9 +437,9 @@ export const ProfilePage = () => {
                     <div className="flex justify-center py-20">
                         <div className="animate-spin h-8 w-8 border-4 border-zinc-800 border-t-white rounded-full"></div>
                     </div>
-                ) : posts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {posts.map((post) => (
+                ) : filteredPosts.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-20 px-4 md:px-0">
+                        {filteredPosts.map((post) => (
                             <div
                                 key={post.id}
                                 onClick={() => setSelectedPost(post)}
@@ -452,8 +466,9 @@ export const ProfilePage = () => {
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/post:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-30">
                                     <div className="flex gap-4 text-white font-bold">
                                         <div className="flex items-center gap-1">
-                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                                            <span>0</span>
+                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                            </svg>
                                         </div>
                                     </div>
                                 </div>
@@ -462,15 +477,21 @@ export const ProfilePage = () => {
                     </div>
                 ) : (
                     <div
-                        onClick={() => navigate('/create')}
-                        className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-[2.5rem] bg-zinc-900/20 group/empty hover:bg-zinc-900/30 transition-all cursor-pointer"
+                        onClick={() => (activeTab === 'Photos' || activeTab === 'Videos') ? navigate('/create', { state: { type: activeTab === 'Photos' ? 'photo' : 'video' } }) : null}
+                        className={`flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-[2.5rem] bg-zinc-900/20 group/empty transition-all ${(activeTab === 'Photos' || activeTab === 'Videos') ? 'hover:bg-zinc-900/30 cursor-pointer' : 'cursor-default'}`}
                     >
-                        <div className="w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5 transition-all duration-300">
+                        <div className={`w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 transition-all duration-300 ${(activeTab === 'Photos' || activeTab === 'Videos') ? 'group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5' : ''}`}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-zinc-500 group-hover/empty:text-white transition-colors">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
                         </div>
-                        <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">Add your first post</p>
+                        <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">
+                            {activeTab === 'Photos' ? 'Capture and share your world! Post your first photo' :
+                                activeTab === 'Videos' ? 'Bring your profile to life with videos' :
+                                    activeTab === 'Likes' ? 'Spread the love! Like posts to see them here' :
+                                        activeTab === 'Saved' ? 'Save the moments that inspire you' :
+                                            'No content here yet'}
+                        </p>
                     </div>
                 )}
             </div>
@@ -483,6 +504,7 @@ export const ProfilePage = () => {
                         currentUser={profile}
                         onClose={() => setSelectedPost(null)}
                         onDelete={handlePostDelete}
+                        onLikeUpdate={handleLikeUpdate}
                     />
                 )}
             </AnimatePresence>

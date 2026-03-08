@@ -1,58 +1,120 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ImageCropper from '../components/ui/ImageCropper';
+import VideoTrimmer from '../components/ui/VideoTrimmer';
+import VideoPositioner from '../components/ui/VideoPositioner';
 
 export const CreatePage = () => {
+    const location = useLocation();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [step, setStep] = useState<'select' | 'crop' | 'details'>('select');
+    const [step, setStep] = useState<'select' | 'crop' | 'position' | 'trim' | 'details'>('select');
+    const [mediaType, setMediaType] = useState<'photo' | 'video'>((location.state as any)?.type || 'photo');
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
-    const [croppedImage, setCroppedImage] = useState<Blob | null>(null);
+    const [originalFile, setOriginalFile] = useState<File | null>(null);
+    const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
+    const [videoTrimMetadata, setVideoTrimMetadata] = useState<{ start: number, end: number } | null>(null);
+    const [videoPanOffset, setVideoPanOffset] = useState<{ x: number, y: number }>({ x: 50, y: 50 });
+    const [thumbnail, setThumbnail] = useState<Blob | null>(null);
     const [caption, setCaption] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            const isVideo = file.type.startsWith('video/');
             const reader = new FileReader();
             reader.onload = () => {
                 setSelectedFile(reader.result as string);
-                setStep('crop');
+                setMediaType(isVideo ? 'video' : 'photo');
+                setOriginalFile(file);
+
+                if (isVideo) {
+                    setStep('position');
+                } else {
+                    setStep('crop');
+                }
             };
             reader.readAsDataURL(file);
         }
         event.target.value = '';
     };
 
-    const handleCropComplete = (croppedBlob: Blob) => {
-        setCroppedImage(croppedBlob);
+    const handleCropComplete = (blob: Blob) => {
+        setCroppedBlob(blob);
+        if (mediaType === 'video') {
+            setStep('trim');
+        } else {
+            setStep('details');
+        }
+    };
+
+    const handleTrimComplete = (start: number, end: number, videoThumbnail: Blob) => {
+        setVideoTrimMetadata({ start, end });
+        setThumbnail(videoThumbnail);
         setStep('details');
     };
 
+    const handlePositionComplete = (pan: { x: number, y: number }) => {
+        setVideoPanOffset(pan);
+        setStep('trim');
+    };
+
     const handlePost = async () => {
-        if (!croppedImage) return;
+        const fileToUpload = mediaType === 'video' ? (croppedBlob || originalFile) : croppedBlob;
+        if (!fileToUpload) return;
 
         setIsUploading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) throw new Error("Not authenticated");
 
-            // 1. Upload image
-            const filename = `${session.user.id}/${Date.now()}.jpg`;
+            let publicMediaUrl = '';
+            let publicThumbnailUrl = '';
+
+            // 1. Upload Media
+            const timestamp = Date.now();
+            const mediaExt = mediaType === 'video' ? 'mp4' : 'jpg';
+            const mediaFilename = `${session.user.id}/${timestamp}.${mediaExt}`;
+            const mediaBucket = mediaType === 'video' ? 'videos' : 'posts';
+
             const { error: uploadError } = await supabase.storage
-                .from('posts')
-                .upload(filename, croppedImage, {
-                    contentType: 'image/jpeg',
+                .from(mediaBucket)
+                .upload(mediaFilename, fileToUpload, {
+                    contentType: mediaType === 'video' ? 'video/mp4' : 'image/jpeg',
                     upsert: false
                 });
 
             if (uploadError) throw uploadError;
 
-            // 2. Get Public URL
             const { data: { publicUrl } } = supabase.storage
-                .from('posts')
-                .getPublicUrl(filename);
+                .from(mediaBucket)
+                .getPublicUrl(mediaFilename);
+
+            publicMediaUrl = publicUrl;
+
+            // 2. Upload Thumbnail if video
+            if (mediaType === 'video' && thumbnail) {
+                const thumbFilename = `${session.user.id}/${timestamp}_thumb.jpg`;
+                const { error: thumbError } = await supabase.storage
+                    .from('posts')
+                    .upload(thumbFilename, thumbnail, {
+                        contentType: 'image/jpeg',
+                        upsert: false
+                    });
+
+                if (thumbError) throw thumbError;
+
+                const { data: { publicUrl: thumbUrl } } = supabase.storage
+                    .from('posts')
+                    .getPublicUrl(thumbFilename);
+
+                publicThumbnailUrl = thumbUrl;
+            } else {
+                publicThumbnailUrl = publicMediaUrl;
+            }
 
             // 3. Get User Profile for Username
             const { data: profile } = await supabase
@@ -68,14 +130,20 @@ export const CreatePage = () => {
                 .from('posts')
                 .insert({
                     username: profile.username,
-                    image_url: publicUrl,
-                    caption: caption.trim()
+                    image_url: publicThumbnailUrl,
+                    video_url: mediaType === 'video' ? publicMediaUrl : null,
+                    start_time: videoTrimMetadata?.start || 0,
+                    end_time: videoTrimMetadata?.end || null,
+                    video_pan_x: mediaType === 'video' ? videoPanOffset.x : 50,
+                    video_pan_y: mediaType === 'video' ? videoPanOffset.y : 50,
+                    caption: caption.trim(),
+                    type: mediaType
                 });
 
             if (insertError) throw insertError;
 
-            // 4. Force hard refresh navigation to profile
-            window.location.href = '/Allify/profile';
+            // 5. Force hard refresh navigation to profile
+            window.location.href = `/Allify/profile`;
 
         } catch (error: any) {
             console.error("Error creating post:", error);
@@ -117,9 +185,10 @@ export const CreatePage = () => {
                             type="file"
                             ref={fileInputRef}
                             onChange={handleFileSelect}
-                            accept="image/*"
+                            accept="image/*,video/*"
                             className="hidden"
                         />
+                        <p className="text-zinc-500 text-xs mt-4">Images up to 20MB, Videos up to 60s recommended</p>
                     </motion.div>
                 )}
 
@@ -136,10 +205,30 @@ export const CreatePage = () => {
                         cropShape="rect"
                         showAspectSelector={true}
                         maxDimension={2048}
+                        isVideo={mediaType === 'video'}
                     />
                 )}
 
-                {step === 'details' && croppedImage && (
+                {step === 'position' && selectedFile && mediaType === 'video' && (
+                    <VideoPositioner
+                        videoUrl={selectedFile}
+                        onPositionComplete={handlePositionComplete}
+                        onCancel={() => {
+                            setStep('select');
+                            setSelectedFile(null);
+                        }}
+                    />
+                )}
+
+                {step === 'trim' && selectedFile && mediaType === 'video' && (
+                    <VideoTrimmer
+                        videoUrl={selectedFile}
+                        onTrimComplete={handleTrimComplete}
+                        onCancel={() => setStep('position')}
+                    />
+                )}
+
+                {step === 'details' && (croppedBlob || originalFile || (mediaType === 'video' && thumbnail)) && (
                     <motion.div
                         key="details"
                         initial={{ opacity: 0 }}
@@ -170,10 +259,17 @@ export const CreatePage = () => {
                             {/* Image Preview */}
                             <div className="w-full md:w-1/2 bg-zinc-900 rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center">
                                 <img
-                                    src={URL.createObjectURL(croppedImage)}
+                                    src={URL.createObjectURL(mediaType === 'video' && thumbnail ? thumbnail : (croppedBlob || originalFile!))}
                                     alt="Preview"
                                     className="w-full h-full object-cover"
                                 />
+                                {mediaType === 'video' && (
+                                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md p-2 rounded-full border border-white/10">
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white">
+                                            <path d="M8 5v14l11-7z" />
+                                        </svg>
+                                    </div>
+                                )}
                                 {isUploading && (
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
                                         <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full" />

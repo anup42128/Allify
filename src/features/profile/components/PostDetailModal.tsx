@@ -8,9 +8,10 @@ interface PostViewerModalProps {
     currentUser: any;
     onClose: () => void;
     onDelete: (postId: string) => void;
+    onLikeUpdate?: (postId: string, isLiked: boolean, likeCount: number) => void;
 }
 
-export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostViewerModalProps) => {
+export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUpdate }: PostViewerModalProps) => {
     const [isLiked, setIsLiked] = useState(post.is_liked_by_me || false);
     const [likeCount, setLikeCount] = useState(post.likes_count || 0);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -25,12 +26,20 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
         if (!post) return;
         fetchComments();
 
-        // Detect image aspect ratio
-        const img = new Image();
-        img.src = post.image_url;
-        img.onload = () => {
-            setImageAspect(img.width / img.height);
-        };
+        // Detect media aspect ratio
+        if (post.type === 'video') {
+            const video = document.createElement('video');
+            video.src = post.video_url;
+            video.onloadedmetadata = () => {
+                setImageAspect(video.videoWidth / video.videoHeight);
+            };
+        } else {
+            const img = new Image();
+            img.src = post.image_url;
+            img.onload = () => {
+                setImageAspect(img.width / img.height);
+            };
+        }
     }, [post]);
 
 
@@ -57,8 +66,13 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
         if (!currentUser || !post) return;
 
         const newLikedState = !isLiked;
+        const newLikeCount = newLikedState ? likeCount + 1 : likeCount - 1;
+
         setIsLiked(newLikedState);
-        setLikeCount((prev: number) => newLikedState ? prev + 1 : prev - 1);
+        setLikeCount(newLikeCount);
+
+        // Notify parent of the update
+        onLikeUpdate?.(post.id, newLikedState, newLikeCount);
 
         try {
             if (newLikedState) {
@@ -78,6 +92,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
             // Revert on error
             setIsLiked(!newLikedState);
             setLikeCount((prev: number) => newLikedState ? prev - 1 : prev + 1);
+            onLikeUpdate?.(post.id, !newLikedState, newLikedState ? likeCount : likeCount + 1);
         }
     };
 
@@ -136,20 +151,36 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
         if (!post) return;
         setIsDeleting(true);
         try {
-            // 1. Extract path from URL more robustly
-            // URL format: .../storage/v1/object/public/posts/userid/timestamp.jpg
-            const urlParts = post.image_url.split('/posts/');
-            if (urlParts.length > 1) {
-                const pathWithParams = urlParts[1];
-                // Remove any query parameters (?t=...)
-                const cleanPath = pathWithParams.split('?')[0];
+            // 1. Extract paths from URLs more robustly
+            const pathsToRemove: { bucket: string, path: string }[] = [];
 
+            // Handle video cleanup
+            if (post.type === 'video' && post.video_url) {
+                const videoParts = post.video_url.split('/videos/');
+                if (videoParts.length > 1) {
+                    pathsToRemove.push({ bucket: 'videos', path: videoParts[1].split('?')[0] });
+                }
+                // Thumbnail is in posts bucket
+                const thumbParts = post.image_url.split('/posts/');
+                if (thumbParts.length > 1) {
+                    pathsToRemove.push({ bucket: 'posts', path: thumbParts[1].split('?')[0] });
+                }
+            } else {
+                // Photo cleanup
+                const photoParts = post.image_url.split('/posts/');
+                if (photoParts.length > 1) {
+                    pathsToRemove.push({ bucket: 'posts', path: photoParts[1].split('?')[0] });
+                }
+            }
+
+            // Remove all associated files
+            for (const item of pathsToRemove) {
                 const { error: storageError } = await supabase.storage
-                    .from('posts')
-                    .remove([cleanPath]);
+                    .from(item.bucket)
+                    .remove([item.path]);
 
                 if (storageError) {
-                    console.error("Storage deletion error:", storageError);
+                    console.error(`Storage deletion error (${item.bucket}):`, storageError);
                 }
             }
 
@@ -201,17 +232,44 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
                         <div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
                     </div>
 
-                    <img
-                        src={post.image_url}
-                        alt={post.caption}
-                        className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
-                        onLoad={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            img.classList.remove('opacity-0');
-                            img.classList.add('opacity-100');
-                            document.getElementById(`modal-loader-${post.id}`)?.classList.add('hidden');
-                        }}
-                    />
+                    {post.type === 'video' ? (
+                        <video
+                            src={post.video_url}
+                            style={{
+                                objectPosition: `${post.video_pan_x || 50}% ${post.video_pan_y || 50}%`
+                            }}
+                            className="w-full h-full object-cover relative z-10"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            onLoadedData={(e) => {
+                                document.getElementById(`modal-loader-${post.id}`)?.classList.add('hidden');
+                                // Apply trim boundaries
+                                if (post.start_time) {
+                                    (e.target as HTMLVideoElement).currentTime = post.start_time;
+                                }
+                            }}
+                            onTimeUpdate={(e) => {
+                                const video = e.target as HTMLVideoElement;
+                                if (post.end_time && video.currentTime >= post.end_time) {
+                                    video.currentTime = post.start_time || 0;
+                                }
+                            }}
+                        />
+                    ) : (
+                        <img
+                            src={post.image_url}
+                            alt={post.caption}
+                            className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                            onLoad={(e) => {
+                                const img = e.target as HTMLImageElement;
+                                img.classList.remove('opacity-0');
+                                img.classList.add('opacity-100');
+                                document.getElementById(`modal-loader-${post.id}`)?.classList.add('hidden');
+                            }}
+                        />
+                    )}
                 </div>
 
                 {/* Right: Details */}
@@ -360,11 +418,11 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
                             >
                                 <svg
                                     viewBox="0 0 24 24"
-                                    className={`w-7 h-7 transition-all ${isLiked ? 'fill-blue-500 text-blue-500 scale-110' : 'fill-transparent text-white group-hover:text-zinc-300'}`}
+                                    className={`w-7 h-7 transition-all ${isLiked ? 'fill-red-500 text-red-500 scale-110 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'fill-transparent text-white group-hover:text-zinc-300'}`}
                                     stroke="currentColor"
                                     strokeWidth="2"
                                 >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75A2.25 2.25 0 0116.5 4.5c0 1.152-.26 2.247-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                                 </svg>
                             </button>
                             <button
@@ -402,6 +460,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete }: PostVi
                         <p className="text-white font-bold text-sm">
                             {likeCount} {likeCount === 1 ? 'like' : 'likes'}
                         </p>
+
                         <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest mt-2 opacity-60">
                             {new Date(post.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
