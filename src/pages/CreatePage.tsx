@@ -3,39 +3,63 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ImageCropper from '../components/ui/ImageCropper';
-import VideoTrimmer from '../components/ui/VideoTrimmer';
-import VideoPositioner from '../components/ui/VideoPositioner';
+import PhotoFilter from '../components/ui/PhotoFilter';
+
 
 export const CreatePage = () => {
     const location = useLocation();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [step, setStep] = useState<'select' | 'crop' | 'position' | 'trim' | 'details'>('select');
+    const [step, setStep] = useState<'select' | 'crop' | 'filter' | 'position' | 'trim' | 'details'>('select');
     const [mediaType, setMediaType] = useState<'photo' | 'video'>((location.state as any)?.type || 'photo');
     const [selectedFile, setSelectedFile] = useState<string | null>(null);
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
-    const [videoTrimMetadata, setVideoTrimMetadata] = useState<{ start: number, end: number } | null>(null);
-    const [videoPanOffset, setVideoPanOffset] = useState<{ x: number, y: number }>({ x: 50, y: 50 });
+    const [originalCroppedBlob, setOriginalCroppedBlob] = useState<Blob | null>(null);
+    // @ts-ignore - Kept for future video integration
     const [thumbnail, setThumbnail] = useState<Blob | null>(null);
+
     const [caption, setCaption] = useState('');
     const [isUploading, setIsUploading] = useState(false);
+    const [videoUploadBlocked, setVideoUploadBlocked] = useState(false);
+    const [selectedFilterId, setSelectedFilterId] = useState('normal');
 
-    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // @ts-ignore - Kept for future video integration
+    const generateVideoThumbnail = (file: File): Promise<Blob> => {
+        return new Promise((resolve) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.src = URL.createObjectURL(file);
+            video.currentTime = 0.1; // Grab frame shortly after start
+            video.onloadeddata = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    resolve(blob!);
+                }, 'image/jpeg', 0.8);
+            };
+        });
+    };
+
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             const isVideo = file.type.startsWith('video/');
             const reader = new FileReader();
-            reader.onload = () => {
-                setSelectedFile(reader.result as string);
-                setMediaType(isVideo ? 'video' : 'photo');
-                setOriginalFile(file);
-
+            reader.onload = async () => {
                 if (isVideo) {
-                    setStep('position');
-                } else {
-                    setStep('crop');
+                    setVideoUploadBlocked(true);
+                    return; // Stop here, do not proceed with video
                 }
+
+                setVideoUploadBlocked(false);
+                setSelectedFile(reader.result as string);
+                setMediaType('photo');
+                setOriginalFile(file);
+                setStep('crop');
             };
             reader.readAsDataURL(file);
         }
@@ -44,22 +68,9 @@ export const CreatePage = () => {
 
     const handleCropComplete = (blob: Blob) => {
         setCroppedBlob(blob);
-        if (mediaType === 'video') {
-            setStep('trim');
-        } else {
-            setStep('details');
-        }
-    };
-
-    const handleTrimComplete = (start: number, end: number, videoThumbnail: Blob) => {
-        setVideoTrimMetadata({ start, end });
-        setThumbnail(videoThumbnail);
-        setStep('details');
-    };
-
-    const handlePositionComplete = (pan: { x: number, y: number }) => {
-        setVideoPanOffset(pan);
-        setStep('trim');
+        setOriginalCroppedBlob(blob); // Store the clean, unfiltered crop
+        setSelectedFilterId('normal');  // Reset filter selection on new crop
+        setStep('filter');
     };
 
     const handlePost = async () => {
@@ -132,10 +143,6 @@ export const CreatePage = () => {
                     username: profile.username,
                     image_url: publicThumbnailUrl,
                     video_url: mediaType === 'video' ? publicMediaUrl : null,
-                    start_time: videoTrimMetadata?.start || 0,
-                    end_time: videoTrimMetadata?.end || null,
-                    video_pan_x: mediaType === 'video' ? videoPanOffset.x : 50,
-                    video_pan_y: mediaType === 'video' ? videoPanOffset.y : 50,
                     caption: caption.trim(),
                     type: mediaType
                 });
@@ -165,22 +172,49 @@ export const CreatePage = () => {
                         className="flex-1 flex flex-col items-center justify-center gap-8"
                     >
                         <h1 className="text-3xl font-bold tracking-tight">Create new post</h1>
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            className="group relative cursor-pointer"
-                        >
-                            <div className="w-64 h-80 rounded-[2.5rem] border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center gap-6 bg-zinc-900/30 group-hover:bg-zinc-900/50 group-hover:border-zinc-500 transition-all duration-300">
-                                <div className="p-6 rounded-full bg-zinc-800 group-hover:scale-110 transition-transform duration-300">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-white">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        {videoUploadBlocked ? (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex flex-col items-center justify-center gap-6 text-center max-w-md bg-zinc-900/40 p-10 rounded-[2.5rem] border border-red-500/20 shadow-2xl backdrop-blur-sm"
+                            >
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-red-500/20 to-orange-500/20 flex items-center justify-center border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative overflow-hidden">
+                                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-red-500 z-10">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z" />
                                     </svg>
+                                    <div className="absolute inset-0 bg-red-500/10 blur-xl animate-pulse" />
                                 </div>
-                                <span className="font-medium text-zinc-400 group-hover:text-white transition-colors tracking-wide">Select from computer</span>
-                            </div>
+                                <div>
+                                    <h2 className="text-2xl font-black tracking-tight text-white mb-2">Videos Not Allowed Yet</h2>
+                                    <p className="text-zinc-400 font-medium leading-relaxed">
+                                        We're currently crafting an incredible, next-level video experience. Hang tight! Photos are still good to go.
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={() => setVideoUploadBlocked(false)}
+                                    className="mt-4 px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-zinc-200 hover:scale-105 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                                >
+                                    Got it
+                                </button>
+                            </motion.div>
+                        ) : (
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="group relative cursor-pointer"
+                            >
+                                <div className="w-64 h-80 rounded-[2.5rem] border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center gap-6 bg-zinc-900/30 group-hover:bg-zinc-900/50 group-hover:border-zinc-500 transition-all duration-300">
+                                    <div className="p-6 rounded-full bg-zinc-800 group-hover:scale-110 transition-transform duration-300">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-white">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                        </svg>
+                                    </div>
+                                    <span className="font-medium text-zinc-400 group-hover:text-white transition-colors tracking-wide">Select from computer</span>
+                                </div>
 
-                            {/* Decorative background glow */}
-                            <div className="absolute inset-0 bg-blue-500/20 blur-3xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
-                        </div>
+                                {/* Decorative background glow */}
+                                <div className="absolute inset-0 bg-blue-500/20 blur-3xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
+                            </div>
+                        )}
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -188,7 +222,7 @@ export const CreatePage = () => {
                             accept="image/*,video/*"
                             className="hidden"
                         />
-                        <p className="text-zinc-500 text-xs mt-4">Images up to 20MB, Videos up to 60s recommended</p>
+                        <p className="text-zinc-500 text-xs mt-4">Images up to 20MB. Videos temporarily not allowed.</p>
                     </motion.div>
                 )}
 
@@ -209,22 +243,16 @@ export const CreatePage = () => {
                     />
                 )}
 
-                {step === 'position' && selectedFile && mediaType === 'video' && (
-                    <VideoPositioner
-                        videoUrl={selectedFile}
-                        onPositionComplete={handlePositionComplete}
-                        onCancel={() => {
-                            setStep('select');
-                            setSelectedFile(null);
+                {step === 'filter' && originalCroppedBlob && (
+                    <PhotoFilter
+                        imageBlob={originalCroppedBlob}
+                        selectedFilterId={selectedFilterId}
+                        onFilterChange={setSelectedFilterId}
+                        onBack={() => setStep('crop')}
+                        onComplete={(filteredBlob: Blob) => {
+                            setCroppedBlob(filteredBlob);
+                            setStep('details');
                         }}
-                    />
-                )}
-
-                {step === 'trim' && selectedFile && mediaType === 'video' && (
-                    <VideoTrimmer
-                        videoUrl={selectedFile}
-                        onTrimComplete={handleTrimComplete}
-                        onCancel={() => setStep('position')}
                     />
                 )}
 
@@ -238,7 +266,7 @@ export const CreatePage = () => {
                         {/* Header */}
                         <div className="flex items-center justify-between mb-8 px-4">
                             <button
-                                onClick={() => setStep('select')} // Restart flow for simplicity
+                                onClick={() => setStep('filter')}
                                 className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8">
@@ -256,23 +284,35 @@ export const CreatePage = () => {
                         </div>
 
                         <div className="flex flex-col md:flex-row gap-8 px-4">
-                            {/* Image Preview */}
-                            <div className="w-full md:w-1/2 bg-zinc-900 rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center">
-                                <img
-                                    src={URL.createObjectURL(mediaType === 'video' && thumbnail ? thumbnail : (croppedBlob || originalFile!))}
-                                    alt="Preview"
-                                    className="w-full h-full object-cover"
-                                />
+                            {/* Image/Video Preview */}
+                            <div className={`w-full md:w-1/2 bg-zinc-950 rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'min-h-[400px]'}`}>
+                                {mediaType === 'video' && originalFile ? (
+                                    <video
+                                        src={URL.createObjectURL(originalFile)}
+                                        className="w-full h-full object-contain"
+                                        autoPlay
+                                        loop
+                                        muted
+                                        playsInline
+                                    />
+                                ) : (
+                                    <img
+                                        src={URL.createObjectURL(croppedBlob || originalFile!)}
+                                        alt="Preview"
+                                        className="w-full h-auto max-h-[70vh] object-contain"
+                                    />
+                                )}
                                 {mediaType === 'video' && (
-                                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md p-2 rounded-full border border-white/10">
+                                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md p-2 rounded-full border border-white/10 z-20">
                                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white">
                                             <path d="M8 5v14l11-7z" />
                                         </svg>
                                     </div>
                                 )}
                                 {isUploading && (
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
-                                        <div className="animate-spin w-12 h-12 border-4 border-white border-t-transparent rounded-full" />
+                                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-md z-30">
+                                        <div className="animate-spin w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mb-4" />
+                                        <p className="text-white font-bold tracking-widest text-sm uppercase">Uploading...</p>
                                     </div>
                                 )}
                             </div>

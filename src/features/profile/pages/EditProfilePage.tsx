@@ -143,6 +143,13 @@ export const EditProfilePage = () => {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file for your avatar.');
+            event.target.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => setTempImage(reader.result as string);
         reader.readAsDataURL(file);

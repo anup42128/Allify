@@ -23,10 +23,6 @@ CREATE TABLE IF NOT EXISTS public.videos (
     video_url TEXT NOT NULL,
     caption TEXT,
     likes_count INTEGER DEFAULT 0,
-    start_time FLOAT DEFAULT 0,
-    end_time FLOAT,
-    video_pan_x FLOAT DEFAULT 50,
-    video_pan_y FLOAT DEFAULT 50,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -61,8 +57,8 @@ BEGIN
             INSERT INTO public.photos (id, username, image_url, caption, likes_count, created_at)
             VALUES (NEW.id, NEW.username, NEW.image_url, NEW.caption, NEW.likes_count, NEW.created_at);
         ELSIF (NEW.type = 'video') THEN
-            INSERT INTO public.videos (id, username, video_url, caption, likes_count, start_time, end_time, video_pan_x, video_pan_y, created_at)
-            VALUES (NEW.id, NEW.username, NEW.video_url, NEW.caption, NEW.likes_count, NEW.start_time, NEW.end_time, NEW.video_pan_x, NEW.video_pan_y, NEW.created_at);
+            INSERT INTO public.videos (id, username, video_url, caption, likes_count, created_at)
+            VALUES (NEW.id, NEW.username, NEW.video_url, NEW.caption, NEW.likes_count, NEW.created_at);
         END IF;
     ELSIF (TG_OP = 'UPDATE') THEN
         IF (NEW.type = 'photo') THEN
@@ -77,16 +73,12 @@ BEGIN
             DELETE FROM public.videos WHERE id = NEW.id;
         ELSIF (NEW.type = 'video') THEN
             -- Update or Insert into videos
-            INSERT INTO public.videos (id, username, video_url, caption, likes_count, start_time, end_time, video_pan_x, video_pan_y, created_at)
-            VALUES (NEW.id, NEW.username, NEW.video_url, NEW.caption, NEW.likes_count, NEW.start_time, NEW.end_time, NEW.video_pan_x, NEW.video_pan_y, NEW.created_at)
+            INSERT INTO public.videos (id, username, video_url, caption, likes_count, created_at)
+            VALUES (NEW.id, NEW.username, NEW.video_url, NEW.caption, NEW.likes_count, NEW.created_at)
             ON CONFLICT (id) DO UPDATE SET
                 video_url = EXCLUDED.video_url,
                 caption = EXCLUDED.caption,
-                likes_count = EXCLUDED.likes_count,
-                start_time = EXCLUDED.start_time,
-                end_time = EXCLUDED.end_time,
-                video_pan_x = EXCLUDED.video_pan_x,
-                video_pan_y = EXCLUDED.video_pan_y;
+                likes_count = EXCLUDED.likes_count;
             -- Clean up photos if it was previously there
             DELETE FROM public.photos WHERE id = NEW.id;
         END IF;

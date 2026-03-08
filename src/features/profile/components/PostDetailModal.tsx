@@ -154,23 +154,28 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
             // 1. Extract paths from URLs more robustly
             const pathsToRemove: { bucket: string, path: string }[] = [];
 
+            // Helper to extract path after the bucket name
+            const extractPath = (url: string, bucket: string) => {
+                const searchString = `/public/${bucket}/`;
+                const index = url.indexOf(searchString);
+                if (index !== -1) {
+                    return url.substring(index + searchString.length).split('?')[0];
+                }
+                return null;
+            };
+
             // Handle video cleanup
             if (post.type === 'video' && post.video_url) {
-                const videoParts = post.video_url.split('/videos/');
-                if (videoParts.length > 1) {
-                    pathsToRemove.push({ bucket: 'videos', path: videoParts[1].split('?')[0] });
-                }
+                const videoPath = extractPath(post.video_url, 'videos');
+                if (videoPath) pathsToRemove.push({ bucket: 'videos', path: videoPath });
+
                 // Thumbnail is in posts bucket
-                const thumbParts = post.image_url.split('/posts/');
-                if (thumbParts.length > 1) {
-                    pathsToRemove.push({ bucket: 'posts', path: thumbParts[1].split('?')[0] });
-                }
+                const thumbPath = extractPath(post.image_url, 'posts');
+                if (thumbPath) pathsToRemove.push({ bucket: 'posts', path: thumbPath });
             } else {
                 // Photo cleanup
-                const photoParts = post.image_url.split('/posts/');
-                if (photoParts.length > 1) {
-                    pathsToRemove.push({ bucket: 'posts', path: photoParts[1].split('?')[0] });
-                }
+                const photoPath = extractPath(post.image_url, 'posts');
+                if (photoPath) pathsToRemove.push({ bucket: 'posts', path: photoPath });
             }
 
             // Remove all associated files
@@ -197,8 +202,8 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
         }
     };
 
-    // Determine layout based on aspect ratio
-    const isPortrait = imageAspect && imageAspect < 0.9;
+    // Determine layout based on aspect ratio (always portrait for videos)
+    const isPortrait = (imageAspect && imageAspect < 0.9) || post.type === 'video';
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
@@ -212,8 +217,9 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
 
             <motion.div
                 layoutId={`post-${post.id}`}
-                className={`relative h-full max-h-[90vh] bg-zinc-900 rounded-[2rem] overflow-hidden flex flex-col md:flex-row shadow-2xl border border-zinc-800 transition-all duration-300 ${isPortrait ? 'max-w-[1000px]' : 'max-w-6xl'
-                    }`}
+                className={`relative max-h-[90vh] bg-zinc-900 rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-800 transition-all duration-300 flex flex-col w-full ${
+                    isPortrait ? 'md:flex-row h-full max-w-[1000px]' : 'md:block h-auto max-w-6xl md:pr-[400px]'
+                }`}
             >
                 {/* Close Button */}
                 <button
@@ -224,8 +230,9 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                 </button>
 
                 {/* Left: Image Container */}
-                <div className={`relative bg-zinc-950 flex items-center justify-center overflow-hidden h-[40vh] md:h-full transition-all duration-300 ${isPortrait ? 'w-full md:aspect-[4/5]' : 'w-full md:aspect-square md:max-w-[70vh]'
-                    }`}>
+                <div className={`relative bg-zinc-950 flex items-center justify-center overflow-hidden transition-all duration-300 ${
+                    isPortrait ? 'flex-1 h-[50vh] md:h-full' : 'w-full h-auto min-h-[450px] max-h-[90vh]'
+                }`}>
                     {/* Loading State (Spinner + Pulse) */}
                     <div id={`modal-loader-${post.id}`} className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
                         <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
@@ -235,33 +242,20 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                     {post.type === 'video' ? (
                         <video
                             src={post.video_url}
-                            style={{
-                                objectPosition: `${post.video_pan_x || 50}% ${post.video_pan_y || 50}%`
-                            }}
-                            className="w-full h-full object-cover relative z-10"
+                            className="w-full h-full object-contain relative z-10 max-h-[85vh]"
                             autoPlay
                             loop
                             muted
                             playsInline
-                            onLoadedData={(e) => {
+                            onLoadedData={() => {
                                 document.getElementById(`modal-loader-${post.id}`)?.classList.add('hidden');
-                                // Apply trim boundaries
-                                if (post.start_time) {
-                                    (e.target as HTMLVideoElement).currentTime = post.start_time;
-                                }
-                            }}
-                            onTimeUpdate={(e) => {
-                                const video = e.target as HTMLVideoElement;
-                                if (post.end_time && video.currentTime >= post.end_time) {
-                                    video.currentTime = post.start_time || 0;
-                                }
                             }}
                         />
                     ) : (
                         <img
                             src={post.image_url}
                             alt={post.caption}
-                            className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                            className={`w-full object-contain relative z-10 opacity-0 transition-opacity duration-700 ${isPortrait ? 'h-full max-h-[85vh]' : 'h-auto max-h-[90vh]'}`}
                             onLoad={(e) => {
                                 const img = e.target as HTMLImageElement;
                                 img.classList.remove('opacity-0');
@@ -273,7 +267,11 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                 </div>
 
                 {/* Right: Details */}
-                <div className="w-full md:w-[400px] flex flex-col h-full bg-zinc-950 md:border-l border-zinc-900 shrink-0">
+                <div className={`w-full flex flex-col h-full bg-zinc-950 shrink-0 border-zinc-900 ${
+                    isPortrait 
+                        ? 'md:w-[400px] md:border-l' 
+                        : 'md:absolute md:top-0 md:right-0 md:bottom-0 md:w-[400px] md:border-l'
+                }`}>
                     {/* Header */}
                     <div className="p-6 border-b border-zinc-900 flex items-center justify-between">
                         <div className="flex items-center gap-3">

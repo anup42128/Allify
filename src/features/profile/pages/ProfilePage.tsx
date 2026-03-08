@@ -198,6 +198,13 @@ export const ProfilePage = () => {
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file for your avatar.');
+            event.target.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => setTempImage(reader.result as string);
         reader.readAsDataURL(file);
@@ -477,21 +484,36 @@ export const ProfilePage = () => {
                     </div>
                 ) : (
                     <div
-                        onClick={() => (activeTab === 'Photos' || activeTab === 'Videos') ? navigate('/create', { state: { type: activeTab === 'Photos' ? 'photo' : 'video' } }) : null}
-                        className={`flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-[2.5rem] bg-zinc-900/20 group/empty transition-all ${(activeTab === 'Photos' || activeTab === 'Videos') ? 'hover:bg-zinc-900/30 cursor-pointer' : 'cursor-default'}`}
+                        onClick={() => activeTab === 'Photos' ? navigate('/create', { state: { type: 'photo' } }) : null}
+                        className={`flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-800/50 rounded-[2.5rem] bg-zinc-900/20 group/empty transition-all ${activeTab === 'Photos' ? 'hover:bg-zinc-900/30 cursor-pointer' : 'cursor-default'}`}
                     >
-                        <div className={`w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 transition-all duration-300 ${(activeTab === 'Photos' || activeTab === 'Videos') ? 'group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5' : ''}`}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-zinc-500 group-hover/empty:text-white transition-colors">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
-                        </div>
-                        <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">
-                            {activeTab === 'Photos' ? 'Capture and share your world! Post your first photo' :
-                                activeTab === 'Videos' ? 'Bring your profile to life with videos' :
-                                    activeTab === 'Likes' ? 'Spread the love! Like posts to see them here' :
-                                        activeTab === 'Saved' ? 'Save the moments that inspire you' :
-                                            'No content here yet'}
-                        </p>
+                        {activeTab === 'Videos' ? (
+                            <div className="flex flex-col items-center justify-center gap-4 text-center px-4">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-red-500/10 to-orange-500/10 flex items-center justify-center border border-red-500/20 mb-2">
+                                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-red-500/80">
+                                        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4zM14 13h-3v3H9v-3H6v-2h3V8h2v3h3v2z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-bold text-white tracking-tight">Videos Coming Soon</h3>
+                                <p className="text-zinc-500 font-medium text-sm max-w-[250px] leading-relaxed">
+                                    We're building an incredible new video experience! Sit tight, we'll be ready soon.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className={`w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 transition-all duration-300 ${activeTab === 'Photos' ? 'group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5' : ''}`}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-zinc-500 group-hover/empty:text-white transition-colors">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                </div>
+                                <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">
+                                    {activeTab === 'Photos' ? 'Capture and share your world! Post your first photo' :
+                                        activeTab === 'Likes' ? 'Spread the love! Like posts to see them here' :
+                                            activeTab === 'Saved' ? 'Save the moments that inspire you' :
+                                                'No content here yet'}
+                                </p>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
