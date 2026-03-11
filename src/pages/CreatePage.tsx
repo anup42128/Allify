@@ -179,8 +179,8 @@ export const CreatePage = () => {
                                 className="flex flex-col items-center justify-center gap-6 text-center max-w-md bg-zinc-900/40 p-10 rounded-[2.5rem] border border-red-500/20 shadow-2xl backdrop-blur-sm"
                             >
                                 <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-red-500/20 to-orange-500/20 flex items-center justify-center border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative overflow-hidden">
-                                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10 text-red-500 z-10">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z" />
+                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-red-500 z-10">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                     <div className="absolute inset-0 bg-red-500/10 blur-xl animate-pulse" />
                                 </div>
