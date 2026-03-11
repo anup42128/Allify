@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { CancelConfirmationModal } from './CancelConfirmationModal';
 
 interface PhotoFilterProps {
     imageBlob: Blob;
     onComplete: (filteredBlob: Blob) => void;
     onBack: () => void;
+    onCancel: () => void;
     selectedFilterId: string;
     onFilterChange: (id: string) => void;
 }
@@ -24,10 +26,11 @@ export const FILTERS = [
     { id: 'aura',      name: 'Aura',      css: 'saturate(1.15) brightness(1.06) contrast(0.92) hue-rotate(340deg) sepia(0.12)' },
 ];
 
-const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack, selectedFilterId, onFilterChange }) => {
+const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack, onCancel, selectedFilterId, onFilterChange }) => {
     const selectedFilter = FILTERS.find(f => f.id === selectedFilterId) ?? FILTERS[0];
     const [imageUrl, setImageUrl] = useState<string>('');
     const [isApplying, setIsApplying] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -75,23 +78,41 @@ const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack
             className="flex flex-col h-full max-w-4xl mx-auto w-full pb-8 pt-6 px-4"
         >
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <button
-                    onClick={onBack}
-                    className="flex justify-center items-center w-12 h-12 bg-zinc-900 rounded-full hover:bg-zinc-800 transition text-white"
-                >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-                <h2 className="text-xl font-bold">Apply Filter</h2>
-                <button
-                    onClick={handleApplyFilter}
-                    disabled={isApplying}
-                    className="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition disabled:opacity-50"
-                >
-                    {isApplying ? 'Processing...' : 'Next'}
-                </button>
+            <div className="flex justify-between items-center mb-6 relative">
+                {/* Left side: Back Button */}
+                <div className="flex-1 flex justify-start">
+                    <button
+                        onClick={onBack}
+                        className="flex justify-center items-center w-12 h-12 bg-zinc-900 rounded-full hover:bg-zinc-800 transition text-white"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Center: Title */}
+                <h2 className="text-xl font-bold absolute left-1/2 -translate-x-1/2">Apply Filter</h2>
+
+                {/* Right side: Cancel & Next Buttons */}
+                <div className="flex-1 flex justify-end items-center gap-3">
+                    <button
+                        onClick={() => setShowCancelModal(true)}
+                        className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                        title="Discard Post"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={handleApplyFilter}
+                        disabled={isApplying}
+                        className="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition disabled:opacity-50"
+                    >
+                        {isApplying ? 'Processing...' : 'Next'}
+                    </button>
+                </div>
             </div>
 
             {/* Main body — preview + filter grid side by side from top */}
@@ -145,6 +166,15 @@ const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack
                     </div>
                 </div>
             </div>
+
+            <CancelConfirmationModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={() => {
+                    setShowCancelModal(false);
+                    onCancel();
+                }}
+            />
         </motion.div>
     );
 };

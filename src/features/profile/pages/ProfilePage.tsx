@@ -63,7 +63,10 @@ export const ProfilePage = () => {
     const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [tempImage, setTempImage] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Saved' | 'Likes'>('Photos');
+    const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Favourites' | 'Likes'>('Photos');
+    const [isStarClicked, setIsStarClicked] = useState(false);
+    const [isHeartClicked, setIsHeartClicked] = useState(false);
+    const [savedPosts, setSavedPosts] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const stats = {
@@ -98,6 +101,7 @@ export const ProfilePage = () => {
                     };
                     setProfile(profileData);
                     fetchPosts(profileData.username);
+                    fetchSavedPosts(session.user.id);
                 }
             }
         } catch (err) {
@@ -142,9 +146,20 @@ export const ProfilePage = () => {
                         .in('post_id', enrichedPosts.map(p => p.id));
 
                     const likedPostIds = new Set(userLikes?.map(l => l.post_id) || []);
+
+                    // Also fetch which posts this user has saved
+                    const { data: userSaves } = await supabase
+                        .from('saved_posts')
+                        .select('post_id')
+                        .eq('user_id', session.user.id)
+                        .in('post_id', enrichedPosts.map(p => p.id));
+
+                    const savedPostIds = new Set(userSaves?.map(s => s.post_id) || []);
+
                     enrichedPosts = enrichedPosts.map(p => ({
                         ...p,
-                        is_liked_by_me: likedPostIds.has(p.id)
+                        is_liked_by_me: likedPostIds.has(p.id),
+                        is_saved_by_me: savedPostIds.has(p.id)
                     }));
                 }
             }
@@ -157,9 +172,29 @@ export const ProfilePage = () => {
         }
     };
 
+    const fetchSavedPosts = async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('saved_posts')
+                .select(`
+                    post_id,
+                    posts (*)
+                `)
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const posts = data?.map((item: any) => ({ ...item.posts, is_saved_by_me: true })).filter(Boolean) || [];
+            setSavedPosts(posts);
+        } catch (err) {
+            console.error('Error fetching saved posts:', err);
+        }
+    };
+
     useEffect(() => {
-        fetchProfile();
-        fetchPosts();
+       fetchProfile();
+       fetchPosts();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event) => {
             if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
@@ -241,17 +276,39 @@ export const ProfilePage = () => {
         setPosts(prev => prev.map(p =>
             p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
         ));
+        // Also sync the Favourites tab in real time
+        setSavedPosts(prev => prev.map(p =>
+            p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
+        ));
+        // Keep selectedPost in sync too
+        setSelectedPost((prev: any) => prev?.id === postId ? { ...prev, is_liked_by_me: isLiked, likes_count: likeCount } : prev);
     };
 
     const handlePostDelete = (deletedPostId: string) => {
         setPosts(prev => prev.filter(p => p.id !== deletedPostId));
+        setSavedPosts(prev => prev.filter(p => p.id !== deletedPostId));
     };
 
-    const filteredPosts = posts.filter(post => {
-        if (activeTab === 'Photos') return post.type === 'photo' || !post.type;
-        if (activeTab === 'Videos') return post.type === 'video';
-        return false; // Saved and Likes are placeholders for now
-    });
+    const handleSaveToggle = (post: any, isSaved: boolean) => {
+        // Instantly update the Favourites tab without a page refresh
+        if (isSaved) {
+            setSavedPosts(prev => [{ ...post, is_saved_by_me: true }, ...prev.filter(p => p.id !== post.id)]);
+        } else {
+            setSavedPosts(prev => prev.filter(p => p.id !== post.id));
+        }
+        // Update is_saved_by_me on the post in the main posts list
+        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
+        // CRITICAL: also update selectedPost so reopening the modal shows correct state
+        setSelectedPost((prev: any) => prev?.id === post.id ? { ...prev, is_saved_by_me: isSaved } : prev);
+    };
+
+    const filteredPosts = activeTab === 'Favourites'
+        ? savedPosts
+        : posts.filter(post => {
+            if (activeTab === 'Photos') return post.type === 'photo' || !post.type;
+            if (activeTab === 'Videos') return post.type === 'video';
+            return false; // Likes is a placeholder for now
+        });
 
     if (isLoading) {
         return (
@@ -428,7 +485,7 @@ export const ProfilePage = () => {
 
                 {/* Custom Tab Navigation */}
                 <div className="flex justify-center mb-8 bg-zinc-900/30 p-1 rounded-full w-fit mx-auto border border-zinc-800/50">
-                    {['Photos', 'Videos', 'Saved', 'Likes'].map((tab) => (
+                    {['Photos', 'Videos', 'Favourites', 'Likes'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -499,6 +556,52 @@ export const ProfilePage = () => {
                                     We're building an incredible new video experience! Sit tight, we'll be ready soon.
                                 </p>
                             </div>
+                        ) : activeTab === 'Favourites' ? (
+                            <div className="flex flex-col items-center justify-center gap-4 text-center px-4">
+                                <div 
+                                    className="w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-2 cursor-pointer transition-colors duration-300 hover:border-zinc-500 hover:bg-zinc-800/50"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsStarClicked(true);
+                                        setTimeout(() => setIsStarClicked(false), 1000); // Reset after animation
+                                    }}
+                                >
+                                    <svg 
+                                        viewBox="0 0 24 24" 
+                                        stroke="currentColor" 
+                                        strokeWidth="2" 
+                                        className={`w-10 h-10 transition-all duration-700 ease-out ${isStarClicked ? 'fill-amber-400 text-amber-400 scale-125 -rotate-[180deg] drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]' : 'fill-transparent text-zinc-500'}`}
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                                    </svg>
+                                </div>
+                                <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase">
+                                    Favourite the moments that inspire you
+                                </p>
+                            </div>
+                        ) : activeTab === 'Likes' ? (
+                            <div className="flex flex-col items-center justify-center gap-4 text-center px-4">
+                                <div 
+                                    className="w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-2 cursor-pointer transition-colors duration-300 hover:border-zinc-500 hover:bg-zinc-800/50"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsHeartClicked(true);
+                                        setTimeout(() => setIsHeartClicked(false), 800); // Reset after animation
+                                    }}
+                                >
+                                    <svg 
+                                        viewBox="0 0 24 24" 
+                                        stroke="currentColor" 
+                                        strokeWidth="2" 
+                                        className={`w-10 h-10 transition-all duration-500 ease-out ${isHeartClicked ? 'fill-red-500 text-red-500 scale-125 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'fill-transparent text-zinc-500'}`}
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                                    </svg>
+                                </div>
+                                <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase">
+                                    Spread the love! Like posts to see them here
+                                </p>
+                            </div>
                         ) : (
                             <>
                                 <div className={`w-20 h-20 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-6 transition-all duration-300 ${activeTab === 'Photos' ? 'group-hover/empty:scale-110 group-hover/empty:border-white group-hover/empty:bg-white/5' : ''}`}>
@@ -508,8 +611,6 @@ export const ProfilePage = () => {
                                 </div>
                                 <p className="text-zinc-500 font-bold tracking-widest text-xs uppercase group-hover/empty:text-zinc-300 transition-colors">
                                     {activeTab === 'Photos' ? 'Capture and share your world! Post your first photo' :
-                                        activeTab === 'Likes' ? 'Spread the love! Like posts to see them here' :
-                                            activeTab === 'Saved' ? 'Save the moments that inspire you' :
                                                 'No content here yet'}
                                 </p>
                             </>
@@ -527,6 +628,7 @@ export const ProfilePage = () => {
                         onClose={() => setSelectedPost(null)}
                         onDelete={handlePostDelete}
                         onLikeUpdate={handleLikeUpdate}
+                        onSaveToggle={handleSaveToggle}
                     />
                 )}
             </AnimatePresence>

@@ -9,40 +9,65 @@ interface PostViewerModalProps {
     onClose: () => void;
     onDelete: (postId: string) => void;
     onLikeUpdate?: (postId: string, isLiked: boolean, likeCount: number) => void;
+    onSaveToggle?: (post: any, isSaved: boolean) => void;
 }
 
-export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUpdate }: PostViewerModalProps) => {
+export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUpdate, onSaveToggle }: PostViewerModalProps) => {
     const [isLiked, setIsLiked] = useState(post.is_liked_by_me || false);
     const [likeCount, setLikeCount] = useState(post.likes_count || 0);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [imageAspect, setImageAspect] = useState<number | null>(null);
     const [activeTab, setActiveTab] = useState<'details' | 'comments'>('details');
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState('');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const [isSaved, setIsSaved] = useState(post.is_saved_by_me || false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (!post) return;
         fetchComments();
-
-        // Detect media aspect ratio
-        if (post.type === 'video') {
-            const video = document.createElement('video');
-            video.src = post.video_url;
-            video.onloadedmetadata = () => {
-                setImageAspect(video.videoWidth / video.videoHeight);
-            };
-        } else {
-            const img = new Image();
-            img.src = post.image_url;
-            img.onload = () => {
-                setImageAspect(img.width / img.height);
-            };
-        }
+        checkIfSaved();
     }, [post]);
+    const checkIfSaved = async () => {
+        if (!currentUser || !post) return;
+        const { data } = await supabase
+            .from('saved_posts')
+            .select('id')
+            .eq('user_id', currentUser.id)
+            .eq('post_id', post.id)
+            .maybeSingle();
+        setIsSaved(!!data);
+    };
 
+    const handleToggleSave = async () => {
+        if (!currentUser || !post || isSaving) return;
+        setIsSaving(true);
 
+        // Optimistic update
+        const newSavedState = !isSaved;
+        setIsSaved(newSavedState);
+        // Notify parent immediately for instant UI update
+        onSaveToggle?.(post, newSavedState);
+
+        try {
+            if (newSavedState) {
+                await supabase.from('saved_posts').insert({
+                    user_id: currentUser.id,
+                    post_id: post.id
+                });
+            } else {
+                await supabase.from('saved_posts').delete()
+                    .eq('user_id', currentUser.id)
+                    .eq('post_id', post.id);
+            }
+        } catch (error) {
+            console.error('Error toggling save:', error);
+            setIsSaved(!newSavedState); // Revert on fail
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const fetchComments = async () => {
         if (!post) return;
@@ -202,8 +227,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
         }
     };
 
-    // Determine layout based on aspect ratio (always portrait for videos)
-    const isPortrait = (imageAspect && imageAspect < 0.9) || post.type === 'video';
+    // Removed isPortrait layout branch entirely to enforce universal shrink-wrapping
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
@@ -217,9 +241,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
 
             <motion.div
                 layoutId={`post-${post.id}`}
-                className={`relative max-h-[90vh] bg-zinc-900 rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-800 transition-all duration-300 flex flex-col w-full ${
-                    isPortrait ? 'md:flex-row h-full max-w-[1000px]' : 'md:block h-auto max-w-6xl md:pr-[400px]'
-                }`}
+                className="relative bg-zinc-900 rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-800 transition-all duration-300 flex flex-col md:flex-row w-full md:w-max mx-auto h-auto md:items-stretch max-h-[90vh] md:max-w-[95vw]"
             >
                 {/* Close Button */}
                 <button
@@ -230,9 +252,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                 </button>
 
                 {/* Left: Image Container */}
-                <div className={`relative bg-zinc-950 flex items-center justify-center overflow-hidden transition-all duration-300 ${
-                    isPortrait ? 'flex-1 h-[50vh] md:h-full' : 'w-full h-auto min-h-[450px] max-h-[90vh]'
-                }`}>
+                <div className="relative bg-black flex items-center justify-center overflow-hidden transition-all duration-300 w-full md:w-auto shrink min-w-0">
                     {/* Loading State (Spinner + Pulse) */}
                     <div id={`modal-loader-${post.id}`} className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
                         <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
@@ -242,7 +262,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                     {post.type === 'video' ? (
                         <video
                             src={post.video_url}
-                            className="w-full h-full object-contain relative z-10 max-h-[85vh]"
+                            className="object-contain relative z-10 w-auto h-[85vh] md:h-[90vh] aspect-[9/16]"
                             autoPlay
                             loop
                             muted
@@ -255,7 +275,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                         <img
                             src={post.image_url}
                             alt={post.caption}
-                            className={`w-full object-contain relative z-10 opacity-0 transition-opacity duration-700 ${isPortrait ? 'h-full max-h-[85vh]' : 'h-auto max-h-[90vh]'}`}
+                            className="object-contain relative z-10 opacity-0 transition-opacity duration-700 w-auto h-auto max-w-full max-h-[60vh] md:max-h-[90vh]"
                             onLoad={(e) => {
                                 const img = e.target as HTMLImageElement;
                                 img.classList.remove('opacity-0');
@@ -267,11 +287,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                 </div>
 
                 {/* Right: Details */}
-                <div className={`w-full flex flex-col h-full bg-zinc-950 shrink-0 border-zinc-900 ${
-                    isPortrait 
-                        ? 'md:w-[400px] md:border-l' 
-                        : 'md:absolute md:top-0 md:right-0 md:bottom-0 md:w-[400px] md:border-l'
-                }`}>
+                <div className="w-full md:w-[400px] flex flex-col bg-zinc-950 shrink-0 md:border-l border-zinc-900">
                     {/* Header */}
                     <div className="p-6 border-b border-zinc-900 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -447,6 +463,25 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                                     strokeWidth="2"
                                 >
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                                </svg>
+                            </button>
+                            <button
+                                onClick={handleToggleSave}
+                                disabled={isSaving}
+                                className="group"
+                                title="Favourite Post"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    className={`w-7 h-7 transition-all duration-300 ${
+                                        isSaved
+                                            ? 'fill-amber-400 text-amber-400 scale-110 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
+                                            : 'fill-transparent text-white group-hover:text-amber-400 group-hover:fill-amber-400/20'
+                                    }`}
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
                                 </svg>
                             </button>
                             <button className="group ml-auto">

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ImageCropper from '../components/ui/ImageCropper';
 import PhotoFilter from '../components/ui/PhotoFilter';
+import { CancelConfirmationModal } from '../components/ui/CancelConfirmationModal';
 
 
 export const CreatePage = () => {
@@ -23,6 +24,7 @@ export const CreatePage = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [videoUploadBlocked, setVideoUploadBlocked] = useState(false);
     const [selectedFilterId, setSelectedFilterId] = useState('normal');
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     // @ts-ignore - Kept for future video integration
     const generateVideoThumbnail = (file: File): Promise<Blob> => {
@@ -71,6 +73,17 @@ export const CreatePage = () => {
         setOriginalCroppedBlob(blob); // Store the clean, unfiltered crop
         setSelectedFilterId('normal');  // Reset filter selection on new crop
         setStep('filter');
+    };
+
+    const handleDiscardPost = () => {
+        setStep('select');
+        setSelectedFile(null);
+        setOriginalFile(null);
+        setCroppedBlob(null);
+        setOriginalCroppedBlob(null);
+        setCaption('');
+        setSelectedFilterId('normal');
+        setShowCancelModal(false);
     };
 
     const handlePost = async () => {
@@ -161,7 +174,7 @@ export const CreatePage = () => {
     };
 
     return (
-        <div className="h-full w-full bg-black text-white flex flex-col pt-10 px-4 md:px-0 relative">
+        <div className="h-full w-full bg-black text-white flex flex-col pt-10 px-4 md:px-0 overflow-y-auto">
             <AnimatePresence mode="wait">
                 {step === 'select' && (
                     <motion.div
@@ -249,6 +262,7 @@ export const CreatePage = () => {
                         selectedFilterId={selectedFilterId}
                         onFilterChange={setSelectedFilterId}
                         onBack={() => setStep('crop')}
+                        onCancel={handleDiscardPost}
                         onComplete={(filteredBlob: Blob) => {
                             setCroppedBlob(filteredBlob);
                             setStep('details');
@@ -264,28 +278,43 @@ export const CreatePage = () => {
                         className="flex-1 flex flex-col max-w-4xl mx-auto w-full pb-20"
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between mb-8 px-4">
-                            <button
-                                onClick={() => setStep('filter')}
-                                className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
-                            >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                                </svg>
-                            </button>
-                            <h2 className="text-xl font-bold">New Post</h2>
-                            <button
-                                onClick={handlePost}
-                                disabled={isUploading}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isUploading ? 'Sharing...' : 'Share'}
-                            </button>
+                        <div className="flex items-center justify-between mb-8 px-4 relative">
+                            <div className="flex-1 flex justify-start">
+                                <button
+                                    onClick={() => setStep('filter')}
+                                    className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <h2 className="text-xl font-bold absolute left-1/2 -translate-x-1/2">New Post</h2>
+                            
+                            <div className="flex-1 flex justify-end items-center gap-2">
+                                <button
+                                    onClick={() => setShowCancelModal(true)}
+                                    className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                                    title="Discard Post"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={handlePost}
+                                    disabled={isUploading}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isUploading ? 'Sharing...' : 'Share'}
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-8 px-4">
+                        <div className="flex flex-col md:flex-row gap-8 px-4 items-stretch">
                             {/* Image/Video Preview */}
-                            <div className={`w-full md:w-1/2 bg-zinc-950 rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'min-h-[400px]'}`}>
+                            <div className={`w-full bg-black rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center shrink min-w-0 md:max-w-[50%] ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'w-full md:w-auto min-h-[400px]'}`}>
                                 {mediaType === 'video' && originalFile ? (
                                     <video
                                         src={URL.createObjectURL(originalFile)}
@@ -299,7 +328,7 @@ export const CreatePage = () => {
                                     <img
                                         src={URL.createObjectURL(croppedBlob || originalFile!)}
                                         alt="Preview"
-                                        className="w-full h-auto max-h-[70vh] object-contain"
+                                        className="w-auto h-auto min-w-[300px] max-w-full max-h-[70vh] md:max-h-[80vh] object-contain"
                                     />
                                 )}
                                 {mediaType === 'video' && (
@@ -339,6 +368,12 @@ export const CreatePage = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <CancelConfirmationModal
+                isOpen={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                onConfirm={handleDiscardPost}
+            />
         </div>
     );
 };
