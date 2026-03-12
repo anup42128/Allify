@@ -27,18 +27,12 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
     useEffect(() => {
         if (!post) return;
         fetchComments();
-        checkIfSaved();
-    }, [post]);
-    const checkIfSaved = async () => {
-        if (!currentUser || !post) return;
-        const { data } = await supabase
-            .from('saved_posts')
-            .select('id')
-            .eq('user_id', currentUser.id)
-            .eq('post_id', post.id)
-            .maybeSingle();
-        setIsSaved(!!data);
-    };
+    }, [post.id]);
+
+    // Sync isSaved from the parent's pre-seeded prop (avoids race condition with DB round-trip)
+    useEffect(() => {
+        setIsSaved(post.is_saved_by_me || false);
+    }, [post.is_saved_by_me]);
 
     const handleToggleSave = async () => {
         if (!currentUser || !post || isSaving) return;
@@ -54,7 +48,8 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
             if (newSavedState) {
                 await supabase.from('saved_posts').insert({
                     user_id: currentUser.id,
-                    post_id: post.id
+                    post_id: post.id,
+                    username: currentUser.username
                 });
             } else {
                 await supabase.from('saved_posts').delete()

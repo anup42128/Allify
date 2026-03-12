@@ -67,6 +67,7 @@ export const ProfilePage = () => {
     const [isStarClicked, setIsStarClicked] = useState(false);
     const [isHeartClicked, setIsHeartClicked] = useState(false);
     const [savedPosts, setSavedPosts] = useState<any[]>([]);
+    const [likedPosts, setLikedPosts] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const stats = {
@@ -102,6 +103,7 @@ export const ProfilePage = () => {
                     setProfile(profileData);
                     fetchPosts(profileData.username);
                     fetchSavedPosts(session.user.id);
+                    fetchLikedPosts(profileData.username, session.user.id);
                 }
             }
         } catch (err) {
@@ -185,10 +187,90 @@ export const ProfilePage = () => {
 
             if (error) throw error;
 
-            const posts = data?.map((item: any) => ({ ...item.posts, is_saved_by_me: true })).filter(Boolean) || [];
-            setSavedPosts(posts);
+            let fetchedPosts = data?.map((item: any) => ({ ...item.posts, is_saved_by_me: true })).filter(Boolean) || [];
+
+            // Also mark which of these saved posts are liked by the current user
+            if (fetchedPosts.length > 0) {
+                const { data: currentUserProfile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', userId)
+                    .single();
+
+                if (currentUserProfile) {
+                    const { data: userLikes } = await supabase
+                        .from('likes')
+                        .select('post_id')
+                        .eq('username', currentUserProfile.username)
+                        .in('post_id', fetchedPosts.map((p: any) => p.id));
+
+                    const likedPostIds = new Set(userLikes?.map((l: any) => l.post_id) || []);
+                    fetchedPosts = fetchedPosts.map((p: any) => ({
+                        ...p,
+                        is_liked_by_me: likedPostIds.has(p.id)
+                    }));
+                }
+            }
+
+            setSavedPosts(fetchedPosts);
         } catch (err) {
             console.error('Error fetching saved posts:', err);
+        }
+    };
+
+    const fetchLikedPosts = async (username: string, userId: string) => {
+        try {
+            // First get the user's likes
+            const { data: userLikes, error: likesError } = await supabase
+                .from('likes')
+                .select('post_id, created_at')
+                .eq('username', username)
+                .order('created_at', { ascending: false });
+
+            if (likesError) throw likesError;
+            if (!userLikes || userLikes.length === 0) {
+                setLikedPosts([]);
+                return;
+            }
+
+            const likedPostIds = userLikes.map(l => l.post_id);
+
+            // Fetch the actual post data for these liked posts
+            const { data: postsData, error: postsError } = await supabase
+                .from('posts')
+                .select('*')
+                .in('id', likedPostIds);
+
+            if (postsError) throw postsError;
+
+            let fetchedPosts = postsData || [];
+
+            // Re-sort them to match the chronological order of when they were liked
+            fetchedPosts.sort((a, b) => {
+                const indexA = likedPostIds.indexOf(a.id);
+                const indexB = likedPostIds.indexOf(b.id);
+                return indexA - indexB;
+            });
+
+            // Mark them as liked
+            fetchedPosts = fetchedPosts.map(p => ({ ...p, is_liked_by_me: true }));
+
+            // Mark which ones are ALSO saved by the user
+            const { data: userSaves } = await supabase
+                .from('saved_posts')
+                .select('post_id')
+                .eq('user_id', userId)
+                .in('post_id', fetchedPosts.map(p => p.id));
+
+            const savedPostIds = new Set(userSaves?.map(s => s.post_id) || []);
+            fetchedPosts = fetchedPosts.map(p => ({
+                ...p,
+                is_saved_by_me: savedPostIds.has(p.id)
+            }));
+
+            setLikedPosts(fetchedPosts);
+        } catch (err) {
+            console.error('Error fetching liked posts:', err);
         }
     };
 
@@ -273,20 +355,35 @@ export const ProfilePage = () => {
     };
 
     const handleLikeUpdate = (postId: string, isLiked: boolean, likeCount: number) => {
+        // Sync the main posts feed
         setPosts(prev => prev.map(p =>
             p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
         ));
-        // Also sync the Favourites tab in real time
+        // Sync the Favourites tab
         setSavedPosts(prev => prev.map(p =>
             p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
         ));
-        // Keep selectedPost in sync too
+        
+        // Sync the Likes tab
+        if (isLiked) {
+            // Find the full post object from either posts or savedPosts
+            const postToAdd = posts.find(p => p.id === postId) || savedPosts.find(p => p.id === postId) || selectedPost;
+            if (postToAdd && !likedPosts.some(p => p.id === postId)) {
+                setLikedPosts(prev => [{ ...postToAdd, is_liked_by_me: true, likes_count: likeCount }, ...prev]);
+            }
+        } else {
+            // Remove from Likes tab if unliked
+            setLikedPosts(prev => prev.filter(p => p.id !== postId));
+        }
+
+        // Keep selectedPost in sync
         setSelectedPost((prev: any) => prev?.id === postId ? { ...prev, is_liked_by_me: isLiked, likes_count: likeCount } : prev);
     };
 
     const handlePostDelete = (deletedPostId: string) => {
         setPosts(prev => prev.filter(p => p.id !== deletedPostId));
         setSavedPosts(prev => prev.filter(p => p.id !== deletedPostId));
+        setLikedPosts(prev => prev.filter(p => p.id !== deletedPostId));
     };
 
     const handleSaveToggle = (post: any, isSaved: boolean) => {
@@ -298,17 +395,21 @@ export const ProfilePage = () => {
         }
         // Update is_saved_by_me on the post in the main posts list
         setPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
+        // Update is_saved_by_me in the Likes tab so stars stay synced there too
+        setLikedPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
         // CRITICAL: also update selectedPost so reopening the modal shows correct state
         setSelectedPost((prev: any) => prev?.id === post.id ? { ...prev, is_saved_by_me: isSaved } : prev);
     };
 
     const filteredPosts = activeTab === 'Favourites'
         ? savedPosts
-        : posts.filter(post => {
-            if (activeTab === 'Photos') return post.type === 'photo' || !post.type;
-            if (activeTab === 'Videos') return post.type === 'video';
-            return false; // Likes is a placeholder for now
-        });
+        : activeTab === 'Likes'
+            ? likedPosts
+            : posts.filter(post => {
+                if (activeTab === 'Photos') return post.type === 'photo' || !post.type;
+                if (activeTab === 'Videos') return post.type === 'video';
+                return false;
+            });
 
     if (isLoading) {
         return (
