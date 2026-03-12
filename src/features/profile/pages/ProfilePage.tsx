@@ -55,6 +55,9 @@ export const ProfilePage = () => {
         location: string | null;
         website: string | null;
         badges: string[];
+        allies_count: number;
+        alling_count: number;
+        allied_count: number;
     } | null>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -72,9 +75,9 @@ export const ProfilePage = () => {
 
     const stats = {
         posts: posts.length,
-        allies: 0,
-        alling: 0,
-        allied: 0
+        allies: profile?.allies_count ?? 0,
+        alling: profile?.alling_count ?? 0,
+        allied: profile?.allied_count ?? 0
     };
 
     const fetchProfile = async () => {
@@ -98,7 +101,10 @@ export const ProfilePage = () => {
                         avatar_url: data.avatar_url || null,
                         location: data.location || null,
                         website: data.website || null,
-                        badges: data.badges || []
+                        badges: data.badges || [],
+                        allies_count: data.allies_count || 0,
+                        alling_count: data.alling_count || 0,
+                        allied_count: data.allied_count || 0
                     };
                     setProfile(profileData);
                     fetchPosts(profileData.username);
