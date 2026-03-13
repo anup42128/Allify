@@ -6,13 +6,15 @@ import { formatDistanceToNow } from 'date-fns';
 interface PostViewerModalProps {
     post: any;
     currentUser: any;
+    postAuthor?: any; // Add postAuthor to explicitly pass the owner of the post
     onClose: () => void;
     onDelete: (postId: string) => void;
     onLikeUpdate?: (postId: string, isLiked: boolean, likeCount: number) => void;
     onSaveToggle?: (post: any, isSaved: boolean) => void;
+    hideDeleteButton?: boolean;
 }
 
-export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUpdate, onSaveToggle }: PostViewerModalProps) => {
+export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDelete, onLikeUpdate, onSaveToggle, hideDeleteButton = false }: PostViewerModalProps) => {
     const [isLiked, setIsLiked] = useState(post.is_liked_by_me || false);
     const [likeCount, setLikeCount] = useState(post.likes_count || 0);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -287,8 +289,8 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                     <div className="p-6 border-b border-zinc-900 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
-                                {currentUser?.avatar_url ? (
-                                    <img src={currentUser.avatar_url} className="w-full h-full object-cover" />
+                                {postAuthor?.avatar_url ? (
+                                    <img src={postAuthor.avatar_url} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-zinc-500">
                                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
@@ -296,7 +298,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
                                 )}
                             </div>
                             <div>
-                                <h3 className="text-white font-bold text-sm">{currentUser?.username || 'User'}</h3>
+                                <h3 className="text-white font-bold text-sm">{postAuthor?.username || post.username || 'User'}</h3>
                                 {post.created_at && (
                                     <p className="text-zinc-500 text-xs">
                                         {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
@@ -307,7 +309,7 @@ export const PostDetailModal = ({ post, currentUser, onClose, onDelete, onLikeUp
 
                         {/* Options */}
                         <div className="flex items-center gap-2">
-                            {post.username === currentUser?.username && (
+                            {!hideDeleteButton && post.username === currentUser?.username && (
                                 <button
                                     onClick={handleDeleteClick}
                                     className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors"

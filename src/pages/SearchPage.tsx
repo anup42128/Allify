@@ -117,7 +117,10 @@ export const SearchPage = () => {
 
             {/* Right Main Content Area */}
             {selectedUser ? (
-                <SearchProfileView username={selectedUser.username} />
+                <SearchProfileView 
+                    username={selectedUser.username} 
+                    onBack={() => setSelectedUser(null)} 
+                />
             ) : (
                 <motion.div 
                     initial={{ opacity: 0 }}

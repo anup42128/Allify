@@ -1,19 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { PostDetailModal } from './PostDetailModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SearchProfileViewProps {
     username: string;
+    onBack?: () => void;
 }
 
-export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
+export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) => {
     const [profile, setProfile] = useState<any | null>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [currentUser, setCurrentUser] = useState<any | null>(null);
     const [activeTab, setActiveTab] = useState<'All' | 'Photos' | 'Videos'>('All');
+    const [scrollY, setScrollY] = useState(0);
+    const [showAvatarViewer, setShowAvatarViewer] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const fetchUserAndProfile = async () => {
@@ -123,6 +127,21 @@ export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
         setSelectedPost((prev: any) => prev?.id === post.id ? { ...prev, is_saved_by_me: isSaved } : prev);
     };
 
+    // Track scroll position to gradually shrink close button
+    useEffect(() => {
+        if (isLoading) return;
+        const el = scrollRef.current;
+        if (!el) return;
+        const onScroll = () => setScrollY(el.scrollTop);
+        el.addEventListener('scroll', onScroll);
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [isLoading]);
+
+    // Compute button scale & opacity based on scroll (shrinks over first 200px of scroll)
+    const scrollProgress = Math.min(scrollY / 200, 1);
+    const buttonScale = 1 - scrollProgress * 0.45;
+    const buttonOpacity = 1 - scrollProgress * 0.25;
+
     if (isLoading) {
         return (
             <div className="flex-1 h-full flex items-center justify-center bg-black">
@@ -147,12 +166,32 @@ export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
     };
 
     return (
-        <div className="flex-1 h-full overflow-y-auto bg-black relative">
+        <div ref={scrollRef} className="flex-1 h-full overflow-y-auto bg-black relative">
             <div className="min-h-full flex flex-col pt-16 px-10 max-w-5xl mx-auto pb-20">
+                {/* Close Button - smoothly shrinks as user scrolls */}
+                {onBack && (
+                    <motion.button
+                        onClick={onBack}
+                        title="Close profile"
+                        animate={{
+                            scale: buttonScale,
+                            opacity: buttonOpacity,
+                        }}
+                        whileHover={{ scale: Math.max(buttonScale, 0.75), opacity: 1 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="fixed top-5 right-8 p-3 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full border border-zinc-800/50 z-50 backdrop-blur-md shadow-xl"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </motion.button>
+                )}
+
                 {/* Profile Header */}
-                <div className="flex flex-col items-center text-center mb-16">
+                <div className="flex flex-col items-center text-center mb-16 relative">
                     <div className="relative mb-6">
-                        <div className="w-40 h-40 rounded-full bg-zinc-900 flex items-center justify-center border-[1px] border-zinc-700 relative z-10 overflow-hidden">
+                        <div
+                            onClick={() => profile.avatar_url && setShowAvatarViewer(true)}
+                            className={`w-40 h-40 rounded-full bg-zinc-900 flex items-center justify-center border-[1px] border-zinc-700 relative z-10 overflow-hidden ${profile.avatar_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                        >
                             {profile.avatar_url ? (
                                 <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
                             ) : (
@@ -233,18 +272,39 @@ export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
 
                 {/* Posts Grid Layout */}
                 <div className="w-full">
-                    {posts.length === 0 ? (
-                        <div className="py-20 text-center">
-                            <div className="w-16 h-16 rounded-full border border-zinc-800 flex items-center justify-center mx-auto mb-4 bg-zinc-900/50">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-8 h-8 text-zinc-500">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-                                </svg>
-                            </div>
-                            <h3 className="text-white text-xl font-bold mb-2">No Posts Yet</h3>
-                            <p className="text-zinc-500 max-w-md mx-auto leading-relaxed">
-                                {profile.username} hasn't posted anything yet.
-                            </p>
+                    {posts.filter(post => {
+                        if (activeTab === 'All') return true;
+                        if (activeTab === 'Photos') return post.type === 'photo' || !post.type;
+                        if (activeTab === 'Videos') return post.type === 'video';
+                        return false;
+                    }).length === 0 ? (
+                        <div className="py-20 text-center flex flex-col items-center justify-center">
+                            {activeTab === 'Videos' ? (
+                                <div className="flex flex-col items-center justify-center gap-4 text-center px-4 mb-4">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-red-500/10 to-orange-500/10 flex items-center justify-center border border-red-500/20 mb-2">
+                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-red-500/80">
+                                            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4zM14 13h-3v3H9v-3H6v-2h3V8h2v3h3v2z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white tracking-tight">Videos Coming Soon</h3>
+                                    <p className="text-zinc-500 font-medium text-sm max-w-[250px] leading-relaxed">
+                                        There are no videos here yet.
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="w-16 h-16 rounded-full border border-zinc-800 flex items-center justify-center mx-auto mb-4 bg-zinc-900/50">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-8 h-8 text-zinc-500">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-white text-xl font-bold mb-2">No {activeTab === 'Photos' ? 'Photos' : 'Posts'} Yet</h3>
+                                    <p className="text-zinc-500 max-w-md mx-auto leading-relaxed">
+                                        {profile.username} hasn't posted any {activeTab === 'Photos' ? 'photos' : 'posts'} yet.
+                                    </p>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 auto-rows-[1fr]">
@@ -266,8 +326,8 @@ export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
                                 >
                                     {post.type === 'video' ? (
                                         <video
-                                            src={post.media_url}
-                                            className="w-full h-full object-cover"
+                                            src={post.video_url}
+                                            className="w-full h-full object-cover relative z-10"
                                             muted
                                             loop
                                             playsInline
@@ -279,7 +339,24 @@ export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
                                             }}
                                         />
                                     ) : (
-                                        <img src={post.media_url} alt="Post" className="w-full h-full object-cover" />
+                                        <>
+                                            {/* Loading State (Spinner + Pulse) */}
+                                            <div id={`search-loader-${post.id}`} className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                                                <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
+                                                <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
+                                            </div>
+                                            <img 
+                                                src={post.image_url} 
+                                                alt="Post" 
+                                                className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                                                onLoad={(e) => {
+                                                    const img = e.target as HTMLImageElement;
+                                                    img.classList.remove('opacity-0');
+                                                    img.classList.add('opacity-100');
+                                                    document.getElementById(`search-loader-${post.id}`)?.classList.add('hidden');
+                                                }}
+                                            />
+                                        </>
                                     )}
 
                                     {/* Hover Overlay */}
@@ -312,11 +389,57 @@ export const SearchProfileView = ({ username }: SearchProfileViewProps) => {
                     <PostDetailModal
                         post={selectedPost}
                         currentUser={currentUser}
+                        postAuthor={profile} // Send the profile owner's details here
                         onClose={() => setSelectedPost(null)}
                         onDelete={() => {}} // User shouldn't be able to delete other's posts
                         onLikeUpdate={handleLikeUpdate}
                         onSaveToggle={handleSaveToggle}
+                        hideDeleteButton={true}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* Avatar Viewer Modal */}
+            <AnimatePresence>
+                {showAvatarViewer && profile?.avatar_url && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowAvatarViewer(false)}
+                            className="absolute inset-0 bg-black/95 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative aspect-square w-full max-w-[500px] overflow-hidden rounded-[2.5rem] border border-zinc-800 shadow-2xl bg-zinc-950"
+                        >
+                            {/* Loading state */}
+                            <div id="search-avatar-viewer-loader" className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
+                                <div className="absolute inset-0 animate-pulse bg-zinc-800/50" />
+                                <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin relative z-30" />
+                            </div>
+                            <img
+                                src={profile.avatar_url}
+                                alt={profile.username}
+                                className="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-700"
+                                onLoad={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.classList.remove('opacity-0');
+                                    img.classList.add('opacity-100');
+                                    document.getElementById('search-avatar-viewer-loader')?.classList.add('hidden');
+                                }}
+                            />
+                            <button
+                                onClick={() => setShowAvatarViewer(false)}
+                                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 backdrop-blur-md text-white border border-white/10 flex items-center justify-center hover:bg-black/70 transition-colors z-30"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

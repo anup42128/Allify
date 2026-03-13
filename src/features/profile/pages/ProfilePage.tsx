@@ -216,6 +216,23 @@ export const ProfilePage = () => {
                         is_liked_by_me: likedPostIds.has(p.id)
                     }));
                 }
+
+                // Batch-fetch author profiles so we can show correct avatar in modal
+                const uniqueUsernames = [...new Set(fetchedPosts.map((p: any) => p.username))];
+                if (uniqueUsernames.length > 0) {
+                    const { data: authorProfiles } = await supabase
+                        .from('profiles')
+                        .select('username, avatar_url, full_name')
+                        .in('username', uniqueUsernames);
+
+                    const profileMap: Record<string, any> = Object.fromEntries(
+                        (authorProfiles || []).map(p => [p.username, p])
+                    );
+                    fetchedPosts = fetchedPosts.map((p: any) => ({
+                        ...p,
+                        author_profile: profileMap[p.username] || null
+                    }));
+                }
             }
 
             setSavedPosts(fetchedPosts);
@@ -273,6 +290,23 @@ export const ProfilePage = () => {
                 ...p,
                 is_saved_by_me: savedPostIds.has(p.id)
             }));
+
+            // Batch-fetch author profiles so the correct avatar shows in the modal
+            const uniqueUsernames = [...new Set(fetchedPosts.map(p => p.username))];
+            if (uniqueUsernames.length > 0) {
+                const { data: authorProfiles } = await supabase
+                    .from('profiles')
+                    .select('username, avatar_url, full_name')
+                    .in('username', uniqueUsernames);
+
+                const profileMap: Record<string, any> = Object.fromEntries(
+                    (authorProfiles || []).map(p => [p.username, p])
+                );
+                fetchedPosts = fetchedPosts.map(p => ({
+                    ...p,
+                    author_profile: profileMap[p.username] || null
+                }));
+            }
 
             setLikedPosts(fetchedPosts);
         } catch (err) {
@@ -732,6 +766,11 @@ export const ProfilePage = () => {
                     <PostDetailModal
                         post={selectedPost}
                         currentUser={profile}
+                        postAuthor={
+                            selectedPost?.username === profile?.username
+                                ? profile
+                                : selectedPost?.author_profile
+                        }
                         onClose={() => setSelectedPost(null)}
                         onDelete={handlePostDelete}
                         onLikeUpdate={handleLikeUpdate}
