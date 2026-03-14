@@ -93,8 +93,22 @@ export const ProfilePage = () => {
                     .single();
 
                 if (data) {
+                    const userId = session.user.id;
+
+                    // Compute live counts from follows table (avoids stale cache in profiles.allies_count etc)
+                    const [{ count: alliesCount }, { count: allingCount }] = await Promise.all([
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
+                    ]);
+                    const { data: allingIds } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
+                    const { count: alliedCount } = await supabase
+                        .from('follows')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('following_id', userId)
+                        .in('follower_id', allingIds?.map((r: any) => r.following_id) ?? []);
+
                     const profileData = {
-                        id: session.user.id,
+                        id: userId,
                         username: data.username || 'user',
                         full_name: data.full_name || data.fullname || data.username || 'Allify User',
                         bio: data.bio || null,
@@ -102,9 +116,9 @@ export const ProfilePage = () => {
                         location: data.location || null,
                         website: data.website || null,
                         badges: data.badges || [],
-                        allies_count: data.allies_count || 0,
-                        alling_count: data.alling_count || 0,
-                        allied_count: data.allied_count || 0
+                        allies_count: alliesCount ?? 0,
+                        alling_count: allingCount ?? 0,
+                        allied_count: alliedCount ?? 0
                     };
                     setProfile(profileData);
                     fetchPosts(profileData.username);

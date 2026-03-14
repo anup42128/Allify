@@ -17,7 +17,16 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
     const [activeTab, setActiveTab] = useState<'All' | 'Photos' | 'Videos'>('All');
     const [scrollY, setScrollY] = useState(0);
     const [showAvatarViewer, setShowAvatarViewer] = useState(false);
+    // Ally (follow) state
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [isAllied, setIsAllied] = useState(false);
+    const [followLoading, setFollowLoading] = useState(false);
+    // Local counters for optimistic UI
+    const [localAllies, setLocalAllies] = useState(0);
+    const [localAlling, setLocalAlling] = useState(0);
+    const [localAllied, setLocalAllied] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
 
     useEffect(() => {
         const fetchUserAndProfile = async () => {
@@ -44,7 +53,7 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                 if (profileError) throw profileError;
 
                 if (profileData) {
-                    setProfile({
+                    const profileObj = {
                         id: profileData.id,
                         username: profileData.username || 'user',
                         full_name: profileData.full_name || profileData.username || 'Allify User',
@@ -53,10 +62,28 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                         location: profileData.location || null,
                         website: profileData.website || null,
                         badges: profileData.badges || [],
-                        allies_count: profileData.allies_count || 0,
-                        alling_count: profileData.alling_count || 0,
-                        allied_count: profileData.allied_count || 0
-                    });
+                    };
+                    setProfile(profileObj);
+
+                    // Fetch LIVE counts from follows table (don't rely on cached profile columns)
+                    const [{ count: alliesCount }, { count: allingCount }] = await Promise.all([
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileData.id),
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileData.id),
+                    ]);
+
+                    // Allied = people this profile follows who also follow them back
+                    const { count: alliedCount } = await supabase
+                        .from('follows')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('follower_id', profileData.id)
+                        .in('following_id',
+                            (await supabase.from('follows').select('follower_id').eq('following_id', profileData.id))
+                                .data?.map((r: any) => r.follower_id) ?? []
+                        );
+
+                    setLocalAllies(alliesCount ?? 0);
+                    setLocalAlling(allingCount ?? 0);
+                    setLocalAllied(alliedCount ?? 0);
 
                     // Fetch target posts
                     const { data: postsData, error: postsError } = await supabase
@@ -104,6 +131,29 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                     }
                     
                     setPosts(enrichedPosts);
+
+                    // Check follow status
+                    if (session?.user && profileData.id !== session.user.id) {
+                        const { data: followRow } = await supabase
+                            .from('follows')
+                            .select('id')
+                            .eq('follower_id', session.user.id)
+                            .eq('following_id', profileData.id)
+                            .maybeSingle();
+                        const following = !!followRow;
+                        setIsFollowing(following);
+
+                        if (following) {
+                            // Check if mutual (allied)
+                            const { data: reverseRow } = await supabase
+                                .from('follows')
+                                .select('id')
+                                .eq('follower_id', profileData.id)
+                                .eq('following_id', session.user.id)
+                                .maybeSingle();
+                            setIsAllied(!!reverseRow);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching profile:", err);
@@ -114,6 +164,67 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
 
         fetchUserAndProfile();
     }, [username]);
+
+    // ─────────────────────────────────────────────────────────────
+    // Follow / Unfollow
+    // ─────────────────────────────────────────────────────────────
+    const handleFollowToggle = async () => {
+        if (!currentUser || !profile || followLoading) return;
+        setFollowLoading(true);
+
+        try {
+            if (isFollowing) {
+                // ── UNFOLLOW ──
+                await supabase
+                    .from('follows')
+                    .delete()
+                    .eq('follower_id', currentUser.id)
+                    .eq('following_id', profile.id);
+
+                // Check if the other person still follows us (they were allied before)
+                const wasAllied = isAllied;
+                setIsFollowing(false);
+                setIsAllied(false);
+                // Optimistic count update
+                setLocalAllies(prev => Math.max(prev - 1, 0));
+                setLocalAlling(cur => Math.max(cur, cur)); // alling unchanged (this is the target's profile)
+                if (wasAllied) setLocalAllied(prev => Math.max(prev - 1, 0));
+            } else {
+                // ── FOLLOW ──
+                const { data: currentProfile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                await supabase.from('follows').insert({
+                    follower_id: currentUser.id,
+                    follower_username: currentProfile?.username || '',
+                    following_id: profile.id,
+                    following_username: profile.username,
+                });
+
+                // Check if this creates a mutual (allied) relationship
+                const { data: reverseFollow } = await supabase
+                    .from('follows')
+                    .select('id')
+                    .eq('follower_id', profile.id)
+                    .eq('following_id', currentUser.id)
+                    .maybeSingle();
+
+                const nowMutual = !!reverseFollow;
+                setIsFollowing(true);
+                setIsAllied(nowMutual);
+                // Optimistic count update
+                setLocalAllies(prev => prev + 1);
+                if (nowMutual) setLocalAllied(prev => prev + 1);
+            }
+        } catch (err) {
+            console.error('Follow toggle error:', err);
+        } finally {
+            setFollowLoading(false);
+        }
+    };
 
     const handleLikeUpdate = (postId: string, isLiked: boolean, likeCount: number) => {
         setPosts(prev => prev.map(p =>
@@ -158,12 +269,7 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
         );
     }
 
-    const stats = {
-        posts: posts.length,
-        allies: profile.allies_count ?? 0,
-        alling: profile.alling_count ?? 0,
-        allied: profile.allied_count ?? 0
-    };
+
 
     return (
         <div ref={scrollRef} className="flex-1 h-full overflow-y-auto bg-black relative">
@@ -243,10 +349,10 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                     {/* Stats */}
                     <div className="flex justify-center gap-4 w-full max-w-2xl px-4">
                         {[
-                            { label: 'POSTS', value: stats.posts },
-                            { label: 'ALLIES', value: stats.allies },
-                            { label: 'ALLING', value: stats.alling },
-                            { label: 'ALLIED', value: stats.allied }
+                            { label: 'POSTS', value: posts.length },
+                            { label: 'ALLIES', value: localAllies },
+                            { label: 'ALLING', value: localAlling },
+                            { label: 'ALLIED', value: localAllied }
                         ].map((stat, i) => (
                             <div key={i} className="flex-1 bg-zinc-900/40 border border-zinc-800/50 rounded-2xl py-5 px-4">
                                 <p className="text-white text-xl font-bold mb-1 tracking-tight">{stat.value}</p>
@@ -256,14 +362,38 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3 mt-10">
-                        <button className="px-8 py-2.5 bg-white text-black rounded-full text-sm font-bold hover:bg-zinc-200 transition-colors">
-                            Follow
-                        </button>
-                        <button className="px-8 py-2.5 bg-zinc-800 text-white border border-zinc-700 rounded-full text-sm font-bold hover:bg-zinc-700 transition-colors">
-                            Message
-                        </button>
-                    </div>
+                    {!isOwnProfile && (
+                        <div className="flex gap-3 mt-10">
+                            <AnimatePresence mode="wait">
+                                <motion.button
+                                    key={isAllied ? 'allied' : isFollowing ? 'following' : 'follow'}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    transition={{ duration: 0.2 }}
+                                    onClick={handleFollowToggle}
+                                    disabled={followLoading}
+                                    className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
+                                        isAllied
+                                            ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+                                            : isFollowing
+                                                ? 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+                                                : 'bg-white text-black hover:bg-zinc-200'
+                                    } disabled:opacity-50`}
+                                >
+                                    {followLoading ? (
+                                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                    ) : isAllied ? (
+                                        <><span>⚡</span> Allied</>
+                                    ) : isFollowing ? (
+                                        <><span>✓</span> Alling</>
+                                    ) : (
+                                        'Ally'
+                                    )}
+                                </motion.button>
+                            </AnimatePresence>
+                        </div>
+                    )}
                 </div>
 
                 {/* Filter Tabs */}
