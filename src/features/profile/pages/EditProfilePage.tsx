@@ -84,7 +84,7 @@ export const EditProfilePage = () => {
                     const profileData = {
                         username: data.username || 'user',
                         full_name: data.full_name || data.fullname || data.username || 'Allify User',
-                        bio: data.bio || "Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨",
+                        bio: data.bio || '',
                         avatar_url: data.avatar_url || null,
                         location: data.location || null,
                         website: data.website || null,
@@ -341,9 +341,11 @@ export const EditProfilePage = () => {
                                 <textarea
                                     value={editFormData.bio}
                                     onChange={(e) => setEditFormData(prev => ({ ...prev, bio: e.target.value }))}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white h-32 resize-none focus:border-white transition-all outline-none"
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white h-32 resize-none focus:border-white transition-all outline-none placeholder:text-zinc-700"
                                     maxLength={150}
+                                    placeholder={"Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨"}
                                 />
+                                <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Note: Lines without spaces will automatically wrap down to fit beautifully on your profile.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -359,6 +361,7 @@ export const EditProfilePage = () => {
                                         className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white focus:border-white transition-all outline-none"
                                         maxLength={30}
                                     />
+                                    <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Location will be visible to other users.</p>
                                 </div>
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center ml-1">
@@ -372,6 +375,7 @@ export const EditProfilePage = () => {
                                         className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white focus:border-white transition-all outline-none"
                                         maxLength={50}
                                     />
+                                    <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Website will be visible to other users.</p>
                                 </div>
                             </div>
 

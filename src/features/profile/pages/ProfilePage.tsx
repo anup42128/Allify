@@ -50,7 +50,7 @@ export const ProfilePage = () => {
         id: string;
         username: string;
         full_name: string;
-        bio: string;
+        bio: string | null;
         avatar_url: string | null;
         location: string | null;
         website: string | null;
@@ -97,7 +97,7 @@ export const ProfilePage = () => {
                         id: session.user.id,
                         username: data.username || 'user',
                         full_name: data.full_name || data.fullname || data.username || 'Allify User',
-                        bio: data.bio || "Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨",
+                        bio: data.bio || null,
                         avatar_url: data.avatar_url || null,
                         location: data.location || null,
                         website: data.website || null,
@@ -539,9 +539,11 @@ export const ProfilePage = () => {
                             </svg>
                         </div>
                         <p className="text-zinc-500 font-medium mb-4 text-sm">@{profile.username}</p>
-                        <p className="text-zinc-300 max-w-sm leading-relaxed text-sm mx-auto mb-6">
-                            {profile.bio || "Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨"}
-                        </p>
+                        {profile.bio && (
+                            <p className="text-zinc-300 max-w-sm leading-relaxed text-sm mx-auto mb-6 break-words whitespace-pre-wrap overflow-hidden">
+                                {profile.bio}
+                            </p>
+                        )}
 
                         {/* Location and Connections Display */}
                         <div className="flex flex-wrap justify-center items-center gap-6 text-zinc-500 font-medium text-[11px] tracking-wider uppercase">
@@ -789,13 +791,35 @@ export const ProfilePage = () => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowImageViewer(false)}
-                            className="absolute inset-0 bg-black/95 backdrop-blur-md"
+                            className="absolute inset-0 bg-black backdrop-blur-md"
                         />
+
+                        {/* Animated Close Hint - Right Side */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: [0, 1, 1, 0], x: [20, 0, 0, 0] }}
+                            transition={{ duration: 4.5, times: [0, 0.1, 0.8, 1], ease: "easeInOut" }}
+                            className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3 text-zinc-400 pointer-events-none z-50 mix-blend-difference"
+                        >
+                            <span className="text-sm font-medium tracking-widest uppercase">Click outside to close</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 animate-pulse"><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" /></svg>
+                        </motion.div>
+
+                        {/* Animated Close Hint - Left Side */}
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: [0, 1, 1, 0], x: [-20, 0, 0, 0] }}
+                            transition={{ duration: 4.5, times: [0, 0.1, 0.8, 1], ease: "easeInOut" }}
+                            className="absolute left-8 top-1/2 -translate-y-1/2 flex flex-row-reverse items-center gap-3 text-zinc-400 pointer-events-none z-50 mix-blend-difference"
+                        >
+                            <span className="text-sm font-medium tracking-widest uppercase">Click outside to close</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 animate-pulse"><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" /></svg>
+                        </motion.div>
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative aspect-square w-full max-w-[600px] overflow-hidden rounded-[2.5rem] border border-zinc-800 shadow-2xl bg-zinc-950"
+                            className="relative aspect-square w-full max-w-[600px] overflow-hidden rounded-full border border-zinc-800 shadow-2xl bg-zinc-950"
                         >
                             {/* Loading State for Avatar Viewer */}
                             <div id="avatar-viewer-loader" className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">

@@ -48,7 +48,7 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                         id: profileData.id,
                         username: profileData.username || 'user',
                         full_name: profileData.full_name || profileData.username || 'Allify User',
-                        bio: profileData.bio || "Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨",
+                        bio: profileData.bio || null,
                         avatar_url: profileData.avatar_url || null,
                         location: profileData.location || null,
                         website: profileData.website || null,
@@ -207,18 +207,35 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                             <h2 className="text-white text-3xl font-bold tracking-tight">{profile.full_name}</h2>
                         </div>
                         <p className="text-zinc-500 font-medium mb-4 text-sm">@{profile.username}</p>
-                        <p className="text-zinc-300 max-w-sm leading-relaxed text-sm mx-auto mb-6">
-                            {profile.bio}
-                        </p>
+                        {profile.bio && (
+                            <p className="text-zinc-300 max-w-sm leading-relaxed text-sm mx-auto mb-6 break-words whitespace-pre-wrap overflow-hidden">
+                                {profile.bio}
+                            </p>
+                        )}
 
+                        {/* Location and Connections Display */}
                         <div className="flex flex-wrap justify-center items-center gap-6 text-zinc-500 font-medium text-[11px] tracking-wider uppercase">
                             {profile.location && (
-                                <div className="flex items-center gap-2">
-                                    <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+                                <div className="flex items-center gap-2 group/info cursor-default hover:text-zinc-300 transition-colors">
+                                    <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800/50 group-hover/info:border-zinc-700/50 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 group-hover/info:text-zinc-400"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
                                     </div>
                                     <span className="font-black">{profile.location}</span>
                                 </div>
+                            )}
+                            {profile.website && (
+                                <a
+                                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 group/info hover:text-white transition-colors"
+                                    onClick={(e) => e.stopPropagation()} // Prevent modal close if clicking inside
+                                >
+                                    <div className="p-2 rounded-xl bg-zinc-900/50 border border-zinc-800/50 group-hover/info:border-indigo-500/30 group-hover/info:bg-indigo-500/5 transition-all">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 group-hover/info:text-indigo-400"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                                    </div>
+                                    <span className="font-black underline underline-offset-4 decoration-zinc-800 group-hover/info:decoration-indigo-500/50 decoration-2 transition-all">{profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                                </a>
                             )}
                         </div>
                     </div>
@@ -408,13 +425,35 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowAvatarViewer(false)}
-                            className="absolute inset-0 bg-black/95 backdrop-blur-md"
+                            className="absolute inset-0 bg-black backdrop-blur-md"
                         />
+                        
+                        {/* Animated Close Hint - Right Side */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: [0, 1, 1, 0], x: [20, 0, 0, 0] }}
+                            transition={{ duration: 4.5, times: [0, 0.1, 0.8, 1], ease: "easeInOut" }}
+                            className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3 text-zinc-400 pointer-events-none z-50 mix-blend-difference"
+                        >
+                            <span className="text-sm font-medium tracking-widest uppercase">Click outside to close</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 animate-pulse"><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" /></svg>
+                        </motion.div>
+
+                        {/* Animated Close Hint - Left Side */}
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: [0, 1, 1, 0], x: [-20, 0, 0, 0] }}
+                            transition={{ duration: 4.5, times: [0, 0.1, 0.8, 1], ease: "easeInOut" }}
+                            className="absolute left-8 top-1/2 -translate-y-1/2 flex flex-row-reverse items-center gap-3 text-zinc-400 pointer-events-none z-50 mix-blend-difference"
+                        >
+                            <span className="text-sm font-medium tracking-widest uppercase">Click outside to close</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 animate-pulse"><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" /></svg>
+                        </motion.div>
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative aspect-square w-full max-w-[500px] overflow-hidden rounded-[2.5rem] border border-zinc-800 shadow-2xl bg-zinc-950"
+                            className="relative aspect-square w-full max-w-[500px] overflow-hidden rounded-full border border-zinc-800 shadow-2xl bg-zinc-950"
                         >
                             {/* Loading state */}
                             <div id="search-avatar-viewer-loader" className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-20">
