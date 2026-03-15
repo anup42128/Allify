@@ -373,20 +373,42 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                                     transition={{ duration: 0.2 }}
                                     onClick={handleFollowToggle}
                                     disabled={followLoading}
-                                    className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
+                                    className={`px-8 py-2.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 group w-32 ${
                                         isAllied
-                                            ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+                                            ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 shadow-[inset_0_0_12px_rgba(99,102,241,0.2)]'
                                             : isFollowing
-                                                ? 'bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
-                                                : 'bg-white text-black hover:bg-zinc-200'
+                                                ? 'bg-gradient-to-b from-zinc-800 to-zinc-900 text-zinc-200 border border-zinc-700/80 shadow-[inset_0_1px_rgba(255,255,255,0.1)] hover:bg-none hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30'
+                                                : 'bg-white text-black hover:bg-zinc-200 shadow-sm'
                                     } disabled:opacity-50`}
                                 >
                                     {followLoading ? (
                                         <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
                                     ) : isAllied ? (
-                                        <><span>⚡</span> Allied</>
+                                        <>
+                                            {/* Normal State */}
+                                            <div className="flex items-center gap-2 group-hover:hidden">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeLinejoin="round"/></svg>
+                                                Allied
+                                            </div>
+                                            {/* Hover State - Unfollow */}
+                                            <div className="hidden group-hover:flex items-center gap-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-red-400"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                Unally
+                                            </div>
+                                        </>
                                     ) : isFollowing ? (
-                                        <><span>✓</span> Alling</>
+                                        <>
+                                            {/* Normal State */}
+                                            <div className="flex items-center gap-2 group-hover:hidden">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><path d="M20 6 9 17l-5-5"/></svg>
+                                                Alling
+                                            </div>
+                                            {/* Hover State - Unfollow */}
+                                            <div className="hidden group-hover:flex items-center gap-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-red-400"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                Unally
+                                            </div>
+                                        </>
                                     ) : (
                                         'Ally'
                                     )}
