@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useProfileContext } from '../../../contexts/ProfileContext';
 import { supabase } from '../../../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
 import ImageCropper from '../../../components/ui/ImageCropper';
@@ -47,7 +46,22 @@ const BADGE_CONFIG: Record<string, { icon: React.ReactNode, label: string, color
 export const ProfilePage = () => {
     const navigate = useNavigate();
     const location = useLocation(); // Hook to access navigation state
-    const { profile, posts, savedPosts, likedPosts, updatePostsLocally, refreshProfile } = useProfileContext();
+    const [profile, setProfile] = useState<{
+        id: string;
+        username: string;
+        full_name: string;
+        bio: string | null;
+        avatar_url: string | null;
+        location: string | null;
+        website: string | null;
+        badges: string[];
+        allies_count: number;
+        alling_count: number;
+        allied_count: number;
+    } | null>(null);
+    const [posts, setPosts] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
     const [showImageViewer, setShowImageViewer] = useState(false);
     const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [tempImage, setTempImage] = useState<string | null>(null);
@@ -55,21 +69,286 @@ export const ProfilePage = () => {
     const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Favourites' | 'Likes'>('Photos');
     const [isStarClicked, setIsStarClicked] = useState(false);
     const [isHeartClicked, setIsHeartClicked] = useState(false);
+    const [savedPosts, setSavedPosts] = useState<any[]>([]);
+    const [likedPosts, setLikedPosts] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const isLoading = !profile;
-
     const stats = {
-        posts: posts?.length || 0,
+        posts: posts.length,
         allies: profile?.allies_count ?? 0,
         alling: profile?.alling_count ?? 0,
         allied: profile?.allied_count ?? 0
     };
 
+    const fetchProfile = async () => {
+        try {
+            const { data } = await supabase.auth.getSession();
+            const session = data.session;
+
+            if (session?.user) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (data) {
+                    const userId = session.user.id;
+
+                    // Compute live counts from follows table (avoids stale cache in profiles.allies_count etc)
+                    const [{ count: alliesCount }, { count: allingCount }] = await Promise.all([
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
+                    ]);
+                    const { data: allingIds } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
+                    const { count: alliedCount } = await supabase
+                        .from('follows')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('following_id', userId)
+                        .in('follower_id', allingIds?.map((r: any) => r.following_id) ?? []);
+
+                    const profileData = {
+                        id: userId,
+                        username: data.username || 'user',
+                        full_name: data.full_name || data.fullname || data.username || 'Allify User',
+                        bio: data.bio || null,
+                        avatar_url: data.avatar_url || null,
+                        location: data.location || null,
+                        website: data.website || null,
+                        badges: data.badges || [],
+                        allies_count: alliesCount ?? 0,
+                        alling_count: allingCount ?? 0,
+                        allied_count: alliedCount ?? 0
+                    };
+                    setProfile(profileData);
+                    fetchPosts(profileData.username);
+                    fetchSavedPosts(session.user.id);
+                    fetchLikedPosts(profileData.username, session.user.id);
+                }
+            }
+        } catch (err) {
+            console.error("Unexpected error in fetchProfile:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchPosts = async (username?: string) => {
+        const targetUsername = username || profile?.username;
+        if (!targetUsername) return;
+
+        setIsLoadingPosts(true);
+        try {
+            // 1. Fetch posts (includes the new likes_count column)
+            const { data: postsData, error: postsError } = await supabase
+                .from('posts')
+                .select('*')
+                .eq('username', targetUsername)
+                .order('created_at', { ascending: false });
+
+            if (postsError) throw postsError;
+
+            let enrichedPosts = postsData || [];
+
+            // 2. Pre-fetch "is liked by me" status for all posts in the grid
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user && enrichedPosts.length > 0) {
+                // Get the current viewer's username
+                const { data: currentUserProfile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (currentUserProfile) {
+                    const { data: userLikes } = await supabase
+                        .from('likes')
+                        .select('post_id')
+                        .eq('username', currentUserProfile.username)
+                        .in('post_id', enrichedPosts.map(p => p.id));
+
+                    const likedPostIds = new Set(userLikes?.map(l => l.post_id) || []);
+
+                    // Also fetch which posts this user has saved
+                    const { data: userSaves } = await supabase
+                        .from('saved_posts')
+                        .select('post_id')
+                        .eq('user_id', session.user.id)
+                        .in('post_id', enrichedPosts.map(p => p.id));
+
+                    const savedPostIds = new Set(userSaves?.map(s => s.post_id) || []);
+
+                    enrichedPosts = enrichedPosts.map(p => ({
+                        ...p,
+                        is_liked_by_me: likedPostIds.has(p.id),
+                        is_saved_by_me: savedPostIds.has(p.id)
+                    }));
+                }
+            }
+
+            setPosts(enrichedPosts);
+        } catch (err) {
+            console.error("Error fetching posts:", err);
+        } finally {
+            setIsLoadingPosts(false);
+        }
+    };
+
+    const fetchSavedPosts = async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('saved_posts')
+                .select(`
+                    post_id,
+                    posts (*)
+                `)
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            let fetchedPosts = data?.map((item: any) => ({ ...item.posts, is_saved_by_me: true })).filter(Boolean) || [];
+
+            // Also mark which of these saved posts are liked by the current user
+            if (fetchedPosts.length > 0) {
+                const { data: currentUserProfile } = await supabase
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', userId)
+                    .single();
+
+                if (currentUserProfile) {
+                    const { data: userLikes } = await supabase
+                        .from('likes')
+                        .select('post_id')
+                        .eq('username', currentUserProfile.username)
+                        .in('post_id', fetchedPosts.map((p: any) => p.id));
+
+                    const likedPostIds = new Set(userLikes?.map((l: any) => l.post_id) || []);
+                    fetchedPosts = fetchedPosts.map((p: any) => ({
+                        ...p,
+                        is_liked_by_me: likedPostIds.has(p.id)
+                    }));
+                }
+
+                // Batch-fetch author profiles so we can show correct avatar in modal
+                const uniqueUsernames = [...new Set(fetchedPosts.map((p: any) => p.username))];
+                if (uniqueUsernames.length > 0) {
+                    const { data: authorProfiles } = await supabase
+                        .from('profiles')
+                        .select('username, avatar_url, full_name')
+                        .in('username', uniqueUsernames);
+
+                    const profileMap: Record<string, any> = Object.fromEntries(
+                        (authorProfiles || []).map(p => [p.username, p])
+                    );
+                    fetchedPosts = fetchedPosts.map((p: any) => ({
+                        ...p,
+                        author_profile: profileMap[p.username] || null
+                    }));
+                }
+            }
+
+            setSavedPosts(fetchedPosts);
+        } catch (err) {
+            console.error('Error fetching saved posts:', err);
+        }
+    };
+
+    const fetchLikedPosts = async (username: string, userId: string) => {
+        try {
+            // First get the user's likes
+            const { data: userLikes, error: likesError } = await supabase
+                .from('likes')
+                .select('post_id, created_at')
+                .eq('username', username)
+                .order('created_at', { ascending: false });
+
+            if (likesError) throw likesError;
+            if (!userLikes || userLikes.length === 0) {
+                setLikedPosts([]);
+                return;
+            }
+
+            const likedPostIds = userLikes.map(l => l.post_id);
+
+            // Fetch the actual post data for these liked posts
+            const { data: postsData, error: postsError } = await supabase
+                .from('posts')
+                .select('*')
+                .in('id', likedPostIds);
+
+            if (postsError) throw postsError;
+
+            let fetchedPosts = postsData || [];
+
+            // Re-sort them to match the chronological order of when they were liked
+            fetchedPosts.sort((a, b) => {
+                const indexA = likedPostIds.indexOf(a.id);
+                const indexB = likedPostIds.indexOf(b.id);
+                return indexA - indexB;
+            });
+
+            // Mark them as liked
+            fetchedPosts = fetchedPosts.map(p => ({ ...p, is_liked_by_me: true }));
+
+            // Mark which ones are ALSO saved by the user
+            const { data: userSaves } = await supabase
+                .from('saved_posts')
+                .select('post_id')
+                .eq('user_id', userId)
+                .in('post_id', fetchedPosts.map(p => p.id));
+
+            const savedPostIds = new Set(userSaves?.map(s => s.post_id) || []);
+            fetchedPosts = fetchedPosts.map(p => ({
+                ...p,
+                is_saved_by_me: savedPostIds.has(p.id)
+            }));
+
+            // Batch-fetch author profiles so the correct avatar shows in the modal
+            const uniqueUsernames = [...new Set(fetchedPosts.map(p => p.username))];
+            if (uniqueUsernames.length > 0) {
+                const { data: authorProfiles } = await supabase
+                    .from('profiles')
+                    .select('username, avatar_url, full_name')
+                    .in('username', uniqueUsernames);
+
+                const profileMap: Record<string, any> = Object.fromEntries(
+                    (authorProfiles || []).map(p => [p.username, p])
+                );
+                fetchedPosts = fetchedPosts.map(p => ({
+                    ...p,
+                    author_profile: profileMap[p.username] || null
+                }));
+            }
+
+            setLikedPosts(fetchedPosts);
+        } catch (err) {
+            console.error('Error fetching liked posts:', err);
+        }
+    };
+
+    useEffect(() => {
+       fetchProfile();
+       fetchPosts();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event) => {
+            if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
+                fetchProfile();
+            } else if (_event === 'SIGNED_OUT') {
+                setProfile(null);
+                setPosts([]);
+                setIsLoading(false);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
     // Effect to refresh posts if navigated from CreatePage
     useEffect(() => {
         if (location.state?.refresh) {
-            refreshProfile();
+            fetchPosts();
             // Clear the state so it doesn't refresh on every render if we stay here
             window.history.replaceState({}, document.title);
         }
@@ -118,11 +397,9 @@ export const ProfilePage = () => {
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
-            // Append a timestamp to bypass cache
-            const cacheBustingUrl = `${publicUrl}?t=${Date.now()}`;
-            await supabase.from('profiles').update({ avatar_url: cacheBustingUrl }).eq('id', session.user.id);
+            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', session.user.id);
 
-            refreshProfile();
+            setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
         } catch (err: any) {
             console.error("Error uploading avatar:", err.message);
             alert("Failed to upload avatar: " + err.message);
@@ -132,19 +409,48 @@ export const ProfilePage = () => {
     };
 
     const handleLikeUpdate = (postId: string, isLiked: boolean, likeCount: number) => {
-        updatePostsLocally(postId, { is_liked_by_me: isLiked, likes_count: likeCount });
+        // Sync the main posts feed
+        setPosts(prev => prev.map(p =>
+            p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
+        ));
+        // Sync the Favourites tab
+        setSavedPosts(prev => prev.map(p =>
+            p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
+        ));
+        
+        // Sync the Likes tab
+        if (isLiked) {
+            // Find the full post object from either posts or savedPosts
+            const postToAdd = posts.find(p => p.id === postId) || savedPosts.find(p => p.id === postId) || selectedPost;
+            if (postToAdd && !likedPosts.some(p => p.id === postId)) {
+                setLikedPosts(prev => [{ ...postToAdd, is_liked_by_me: true, likes_count: likeCount }, ...prev]);
+            }
+        } else {
+            // Remove from Likes tab if unliked
+            setLikedPosts(prev => prev.filter(p => p.id !== postId));
+        }
+
         // Keep selectedPost in sync
         setSelectedPost((prev: any) => prev?.id === postId ? { ...prev, is_liked_by_me: isLiked, likes_count: likeCount } : prev);
     };
 
-    const handlePostDelete = (_deletedPostId: string) => {
-        refreshProfile(); 
+    const handlePostDelete = (deletedPostId: string) => {
+        setPosts(prev => prev.filter(p => p.id !== deletedPostId));
+        setSavedPosts(prev => prev.filter(p => p.id !== deletedPostId));
+        setLikedPosts(prev => prev.filter(p => p.id !== deletedPostId));
     };
 
     const handleSaveToggle = (post: any, isSaved: boolean) => {
-        updatePostsLocally(post.id, { is_saved_by_me: isSaved });
-        refreshProfile(); // Background refresh to update savedPosts array
-        
+        // Instantly update the Favourites tab without a page refresh
+        if (isSaved) {
+            setSavedPosts(prev => [{ ...post, is_saved_by_me: true }, ...prev.filter(p => p.id !== post.id)]);
+        } else {
+            setSavedPosts(prev => prev.filter(p => p.id !== post.id));
+        }
+        // Update is_saved_by_me on the post in the main posts list
+        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
+        // Update is_saved_by_me in the Likes tab so stars stay synced there too
+        setLikedPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
         // CRITICAL: also update selectedPost so reopening the modal shows correct state
         setSelectedPost((prev: any) => prev?.id === post.id ? { ...prev, is_saved_by_me: isSaved } : prev);
     };
@@ -282,7 +588,7 @@ export const ProfilePage = () => {
                         {profile.badges && profile.badges.length > 0 && (
                             <div className="flex flex-wrap justify-center gap-2.5 mt-6">
                                 <AnimatePresence mode="popLayout">
-                                    {profile.badges.map((badgeId: string) => {
+                                    {profile.badges.map(badgeId => {
                                         const config = BADGE_CONFIG[badgeId];
                                         if (!config) return null;
                                         return (
@@ -348,9 +654,13 @@ export const ProfilePage = () => {
                 </div>
 
                 {/* Posts Grid or Empty State */}
-                {filteredPosts.length > 0 ? (
+                {isLoadingPosts ? (
+                    <div className="flex justify-center py-20">
+                        <div className="animate-spin h-8 w-8 border-4 border-zinc-800 border-t-white rounded-full"></div>
+                    </div>
+                ) : filteredPosts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-20 px-4 md:px-0">
-                        {filteredPosts.map((post: any) => (
+                        {filteredPosts.map((post) => (
                             <div
                                 key={post.id}
                                 onClick={() => setSelectedPost(post)}

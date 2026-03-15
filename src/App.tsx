@@ -10,7 +10,6 @@ import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
 import { ResetVerifyPage } from './features/auth/pages/ResetVerifyPage';
 import { NewPasswordPage } from './features/auth/pages/NewPasswordPage';
 import { ResetProvider } from './features/auth/contexts/ResetContext';
-import { ProfileProvider } from './contexts/ProfileContext';
 
 // New Layout and Pages
 import { MainLayout } from './layouts/MainLayout';
@@ -51,7 +50,7 @@ function App() {
           </Route>
 
           {/* Main App Routes - Protected with Sidebar Layout */}
-          <Route element={<ProtectedRoute><ProfileProvider><MainLayout /></ProfileProvider></ProtectedRoute>}>
+          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<EditProfilePage />} />

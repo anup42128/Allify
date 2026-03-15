@@ -56,6 +56,7 @@ export const EditProfilePage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const [tempImage, setTempImage] = useState<string | null>(null);
+    const [showAvatarMenu, setShowAvatarMenu] = useState(false);
     const [editFormData, setEditFormData] = useState({
         username: '',
         full_name: '',
@@ -112,8 +113,14 @@ export const EditProfilePage = () => {
         } catch { return null; }
     };
 
+    const handleAvatarClick = () => {
+        if (profile?.avatar_url) setShowAvatarMenu(true);
+        else fileInputRef.current?.click();
+    };
+
     const handleRemoveAvatar = async () => {
         const previousAvatarUrl = profile?.avatar_url;
+        setShowAvatarMenu(false);
         setIsUploading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -272,7 +279,7 @@ export const EditProfilePage = () => {
                     <div className="p-8 space-y-12">
                         {/* Avatar Section */}
                         <div className="flex flex-col items-center">
-                            <div className="relative group">
+                            <div onClick={handleAvatarClick} className="relative group cursor-pointer">
                                 <div className="w-32 h-32 rounded-full bg-zinc-800 border-2 border-zinc-700 overflow-hidden relative">
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} className="w-full h-full object-cover" />
@@ -287,19 +294,20 @@ export const EditProfilePage = () => {
                                         </div>
                                     )}
                                 </div>
+                                <div className="absolute bottom-1 right-1 w-8 h-8 bg-white text-black rounded-full flex items-center justify-center shadow-lg">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-4 h-4"><path d="M12 4v16m8-8H4" /></svg>
+                                </div>
                             </div>
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
-                            <div className="mt-6 flex gap-4">
-                                <button onClick={() => fileInputRef.current?.click()} className="px-6 py-2 bg-zinc-800 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-700 transition-colors">
-                                    {profile?.avatar_url ? 'Change' : 'Upload'}
-                                </button>
-                                {profile?.avatar_url && (
-                                    <button onClick={handleRemoveAvatar} className="px-6 py-2 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-500/20 transition-colors">
-                                        Remove
-                                    </button>
+                            <AnimatePresence>
+                                {showAvatarMenu && (
+                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="mt-4 flex gap-4">
+                                        <button onClick={() => { setShowAvatarMenu(false); fileInputRef.current?.click(); }} className="px-4 py-2 bg-zinc-800 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-700">Change</button>
+                                        <button onClick={handleRemoveAvatar} className="px-4 py-2 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-500/20">Remove</button>
+                                    </motion.div>
                                 )}
-                            </div>
+                            </AnimatePresence>
                         </div>
 
                         {/* Form Fields */}
