@@ -1,7 +1,18 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../shared/components/Sidebar';
+import { supabase } from '../lib/supabase';
+import { initGlobalChatSync } from '../lib/chatStore';
 
 export const MainLayout = () => {
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            if (data?.user) {
+                initGlobalChatSync(data.user.id);
+            }
+        });
+    }, []);
+
     return (
         <div className="relative h-screen w-screen bg-black overflow-hidden flex font-sans">
             {/* Fixed Sidebar */}

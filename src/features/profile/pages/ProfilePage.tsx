@@ -43,6 +43,12 @@ const BADGE_CONFIG: Record<string, { icon: React.ReactNode, label: string, color
     }
 };
 
+// Simple module-level cache to prevent reloading when navigating
+let cachedProfile: any = null;
+let cachedPosts: any[] | null = null;
+let cachedSavedPosts: any[] | null = null;
+let cachedLikedPosts: any[] | null = null;
+
 export const ProfilePage = () => {
     const navigate = useNavigate();
     const location = useLocation(); // Hook to access navigation state
@@ -58,10 +64,10 @@ export const ProfilePage = () => {
         allies_count: number;
         alling_count: number;
         allied_count: number;
-    } | null>(null);
-    const [posts, setPosts] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+    } | null>(cachedProfile);
+    const [posts, setPosts] = useState<any[]>(cachedPosts || []);
+    const [isLoading, setIsLoading] = useState(!cachedProfile);
+    const [isLoadingPosts, setIsLoadingPosts] = useState(!cachedPosts);
     const [showImageViewer, setShowImageViewer] = useState(false);
     const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [tempImage, setTempImage] = useState<string | null>(null);
@@ -69,8 +75,8 @@ export const ProfilePage = () => {
     const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Favourites' | 'Likes'>('Photos');
     const [isStarClicked, setIsStarClicked] = useState(false);
     const [isHeartClicked, setIsHeartClicked] = useState(false);
-    const [savedPosts, setSavedPosts] = useState<any[]>([]);
-    const [likedPosts, setLikedPosts] = useState<any[]>([]);
+    const [savedPosts, setSavedPosts] = useState<any[]>(cachedSavedPosts || []);
+    const [likedPosts, setLikedPosts] = useState<any[]>(cachedLikedPosts || []);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const stats = {
@@ -120,6 +126,7 @@ export const ProfilePage = () => {
                         alling_count: allingCount ?? 0,
                         allied_count: alliedCount ?? 0
                     };
+                    cachedProfile = profileData;
                     setProfile(profileData);
                     fetchPosts(profileData.username);
                     fetchSavedPosts(session.user.id);
@@ -134,10 +141,10 @@ export const ProfilePage = () => {
     };
 
     const fetchPosts = async (username?: string) => {
-        const targetUsername = username || profile?.username;
+        const targetUsername = username || profile?.username || cachedProfile?.username;
         if (!targetUsername) return;
 
-        setIsLoadingPosts(true);
+        if (!cachedPosts) setIsLoadingPosts(true);
         try {
             // 1. Fetch posts (includes the new likes_count column)
             const { data: postsData, error: postsError } = await supabase
@@ -186,6 +193,7 @@ export const ProfilePage = () => {
                 }
             }
 
+            cachedPosts = enrichedPosts;
             setPosts(enrichedPosts);
         } catch (err) {
             console.error("Error fetching posts:", err);
@@ -249,6 +257,7 @@ export const ProfilePage = () => {
                 }
             }
 
+            cachedSavedPosts = fetchedPosts;
             setSavedPosts(fetchedPosts);
         } catch (err) {
             console.error('Error fetching saved posts:', err);
@@ -336,8 +345,14 @@ export const ProfilePage = () => {
             if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
                 fetchProfile();
             } else if (_event === 'SIGNED_OUT') {
+                cachedProfile = null;
+                cachedPosts = null;
+                cachedSavedPosts = null;
+                cachedLikedPosts = null;
                 setProfile(null);
                 setPosts([]);
+                setSavedPosts([]);
+                setLikedPosts([]);
                 setIsLoading(false);
             }
         });
@@ -410,24 +425,40 @@ export const ProfilePage = () => {
 
     const handleLikeUpdate = (postId: string, isLiked: boolean, likeCount: number) => {
         // Sync the main posts feed
-        setPosts(prev => prev.map(p =>
-            p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
-        ));
+        setPosts(prev => {
+            const next = prev.map(p =>
+                p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
+            );
+            cachedPosts = next;
+            return next;
+        });
         // Sync the Favourites tab
-        setSavedPosts(prev => prev.map(p =>
-            p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
-        ));
+        setSavedPosts(prev => {
+            const next = prev.map(p =>
+                p.id === postId ? { ...p, is_liked_by_me: isLiked, likes_count: likeCount } : p
+            );
+            cachedSavedPosts = next;
+            return next;
+        });
         
         // Sync the Likes tab
         if (isLiked) {
             // Find the full post object from either posts or savedPosts
             const postToAdd = posts.find(p => p.id === postId) || savedPosts.find(p => p.id === postId) || selectedPost;
             if (postToAdd && !likedPosts.some(p => p.id === postId)) {
-                setLikedPosts(prev => [{ ...postToAdd, is_liked_by_me: true, likes_count: likeCount }, ...prev]);
+                setLikedPosts(prev => {
+                    const next = [{ ...postToAdd, is_liked_by_me: true, likes_count: likeCount }, ...prev];
+                    cachedLikedPosts = next;
+                    return next;
+                });
             }
         } else {
             // Remove from Likes tab if unliked
-            setLikedPosts(prev => prev.filter(p => p.id !== postId));
+            setLikedPosts(prev => {
+                const next = prev.filter(p => p.id !== postId);
+                cachedLikedPosts = next;
+                return next;
+            });
         }
 
         // Keep selectedPost in sync
@@ -435,22 +466,50 @@ export const ProfilePage = () => {
     };
 
     const handlePostDelete = (deletedPostId: string) => {
-        setPosts(prev => prev.filter(p => p.id !== deletedPostId));
-        setSavedPosts(prev => prev.filter(p => p.id !== deletedPostId));
-        setLikedPosts(prev => prev.filter(p => p.id !== deletedPostId));
+        setPosts(prev => {
+            const next = prev.filter(p => p.id !== deletedPostId);
+            cachedPosts = next;
+            return next;
+        });
+        setSavedPosts(prev => {
+            const next = prev.filter(p => p.id !== deletedPostId);
+            cachedSavedPosts = next;
+            return next;
+        });
+        setLikedPosts(prev => {
+            const next = prev.filter(p => p.id !== deletedPostId);
+            cachedLikedPosts = next;
+            return next;
+        });
     };
 
     const handleSaveToggle = (post: any, isSaved: boolean) => {
         // Instantly update the Favourites tab without a page refresh
         if (isSaved) {
-            setSavedPosts(prev => [{ ...post, is_saved_by_me: true }, ...prev.filter(p => p.id !== post.id)]);
+            setSavedPosts(prev => {
+                const next = [{ ...post, is_saved_by_me: true }, ...prev.filter(p => p.id !== post.id)];
+                cachedSavedPosts = next;
+                return next;
+            });
         } else {
-            setSavedPosts(prev => prev.filter(p => p.id !== post.id));
+            setSavedPosts(prev => {
+                const next = prev.filter(p => p.id !== post.id);
+                cachedSavedPosts = next;
+                return next;
+            });
         }
         // Update is_saved_by_me on the post in the main posts list
-        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
+        setPosts(prev => {
+            const next = prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p);
+            cachedPosts = next;
+            return next;
+        });
         // Update is_saved_by_me in the Likes tab so stars stay synced there too
-        setLikedPosts(prev => prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p));
+        setLikedPosts(prev => {
+            const next = prev.map(p => p.id === post.id ? { ...p, is_saved_by_me: isSaved } : p);
+            cachedLikedPosts = next;
+            return next;
+        });
         // CRITICAL: also update selectedPost so reopening the modal shows correct state
         setSelectedPost((prev: any) => prev?.id === post.id ? { ...prev, is_saved_by_me: isSaved } : prev);
     };
