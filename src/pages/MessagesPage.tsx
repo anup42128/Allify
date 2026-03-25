@@ -29,6 +29,7 @@ export interface Message {
     seen: boolean;
     optimistic?: boolean;
     reply_to_id?: string | null;
+    message_reactions?: { user_id: string; emoji: string; }[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -91,10 +92,12 @@ export const MessagesPage = () => {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
     const [activeReplyMsg, setActiveReplyMsg] = useState<Message | null>(null);
+    const [activeReactMsg, setActiveReactMsg] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const messageChannelRef = useRef<any>(null);
+    const reactionChannelRef = useRef<any>(null);
     const startChatHandledRef = useRef(false);
     // New message search
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -308,7 +311,7 @@ export const MessagesPage = () => {
         try {
             const { data, error } = await supabase
                 .from('messages')
-                .select('*')
+                .select('*, message_reactions(user_id, emoji)')
                 .eq('conversation_id', convId)
                 .order('created_at', { ascending: true });
 
@@ -537,13 +540,109 @@ export const MessagesPage = () => {
 
         messageChannelRef.current = channel;
 
+        // ── Subscribe to realtime emoji reactions globally ───────────────────────
+        if (reactionChannelRef.current) {
+            supabase.removeChannel(reactionChannelRef.current);
+            reactionChannelRef.current = null;
+        }
+
+        const reactionChannel = supabase
+            .channel(`message_reactions:all:${currentUser.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'message_reactions'
+            }, (payload) => {
+                const isInsert = payload.eventType === 'INSERT';
+                const isDelete = payload.eventType === 'DELETE';
+                const isUpdate = payload.eventType === 'UPDATE';
+                const react = (isInsert || isUpdate ? payload.new : payload.old) as any;
+                
+                // Do not Double-Trigger our own optimistic updates computationally!
+                if (react.user_id === currentUser.id) return;
+                
+                setMessages(prev => prev.map(m => {
+                    if (m.id === react.message_id) {
+                        const current = m.message_reactions || [];
+                        if (isInsert) {
+                            if (!current.some(c => c.user_id === react.user_id)) {
+                                return { ...m, message_reactions: [...current, { user_id: react.user_id, emoji: react.emoji }] };
+                            }
+                        }
+                        if (isUpdate) {
+                            return { ...m, message_reactions: current.map(c => c.user_id === react.user_id ? { ...c, emoji: react.emoji } : c) };
+                        }
+                        if (isDelete) {
+                            return { ...m, message_reactions: current.filter(c => c.user_id !== react.user_id) };
+                        }
+                    }
+                    return m;
+                }));
+            })
+            .subscribe();
+
+        reactionChannelRef.current = reactionChannel;
+
         return () => {
             if (messageChannelRef.current) {
                 supabase.removeChannel(messageChannelRef.current);
                 messageChannelRef.current = null;
             }
+            if (reactionChannelRef.current) {
+                supabase.removeChannel(reactionChannelRef.current);
+                reactionChannelRef.current = null;
+            }
         };
     }, [currentUser, fetchConversations, scrollToBottom]);
+
+    // ── Reaction Handler ───────────────────────────────────────────────────────
+    const handleReaction = useCallback(async (messageId: string, emoji: string) => {
+        setActiveReactMsg(null);
+        if (!currentUser) return;
+
+        const msgIndex = messages.findIndex(m => m.id === messageId);
+        if (msgIndex === -1) return;
+        const msg = messages[msgIndex];
+        
+        const currentReactions = msg.message_reactions || [];
+        const myPreviousReaction = currentReactions.find(r => r.user_id === currentUser.id);
+
+        // Optimistic UI Update locally securely
+        let nextReactions;
+        if (myPreviousReaction) {
+            if (myPreviousReaction.emoji === emoji) {
+                // Toggling off the exact same emoji
+                nextReactions = currentReactions.filter(r => r.user_id !== currentUser.id);
+            } else {
+                // Reacting with a new emoji REPLACES the old one cleanly
+                nextReactions = currentReactions.map(r => r.user_id === currentUser.id ? { ...r, emoji } : r);
+            }
+        } else {
+            // First time reacting
+            nextReactions = [...currentReactions, { user_id: currentUser.id, emoji }];
+        }
+
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, message_reactions: nextReactions } : m));
+        
+        if (activeConvIdRef.current) {
+            const currentCache = cachedMessages.get(activeConvIdRef.current) || [];
+            cachedMessages.set(activeConvIdRef.current, currentCache.map(m => m.id === messageId ? { ...m, message_reactions: nextReactions } : m));
+        }
+
+        try {
+            if (myPreviousReaction) {
+                if (myPreviousReaction.emoji === emoji) {
+                    await supabase.from('message_reactions').delete().match({ message_id: messageId, user_id: currentUser.id });
+                } else {
+                    await supabase.from('message_reactions').update({ emoji }).match({ message_id: messageId, user_id: currentUser.id });
+                }
+            } else {
+                await supabase.from('message_reactions').insert({ message_id: messageId, user_id: currentUser.id, emoji });
+            }
+        } catch (err: any) {
+            console.error('Failed to react:', err);
+        }
+    }, [currentUser, messages]);
 
     // ── Send message ──────────────────────────────────────────────────────────
     const handleUnsendMessage = async (msgId: string) => {
@@ -760,7 +859,7 @@ export const MessagesPage = () => {
     const displayUser = activeConvUser ?? activeConv?.other_user ?? null;
 
     return (
-        <div className="flex h-full w-full bg-black overflow-hidden">
+        <div className="flex h-full w-full bg-black overflow-hidden" onClick={() => { setActiveReactMsg(null); setUnsendMsgId(null); }}>
             {/* ── LEFT PANEL: Conversation List ────────────────────────────────── */}
             <motion.div
                 initial={{ x: -20, opacity: 0 }}
@@ -1058,7 +1157,7 @@ export const MessagesPage = () => {
                                                                 </div>
                                                             )}
                                                             <div
-                                                                className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${!isContinuation ? (msg.reply_to_id ? 'mt-5' : 'mt-3') : (msg.reply_to_id ? 'mt-4' : 'mt-2')}`}
+                                                                className={`flex ${isMe ? 'justify-end' : 'justify-start'} ${!isContinuation ? (msg.reply_to_id ? 'mt-5' : 'mt-3') : (msg.reply_to_id ? 'mt-4' : 'mt-1')}`}
                                                             >
                                                             {/* Avatar for other user */}
                                                             {!isMe && (
@@ -1079,7 +1178,7 @@ export const MessagesPage = () => {
                                                                 </div>
                                                             )}
 
-                                                            <div className={`group/msg max-w-[85%] sm:max-w-[70%] min-w-0 flex flex-col relative ${isMe ? 'items-end' : 'items-start'}`}>
+                                                            <div className={`group/msg ${isMe ? 'max-w-[85%] sm:max-w-[70%]' : 'max-w-[78%] sm:max-w-[63%]'} min-w-0 flex flex-col relative ${isMe ? 'items-end' : 'items-start'}`}>
                                                                 
                                                                 {/* ---- EMBEDDED QUOTE INJECTION ---- */}
                                                                 {msg.reply_to_id && (() => {
@@ -1140,20 +1239,61 @@ export const MessagesPage = () => {
                                                                     );
                                                                 })()}
 
-                                                                <div className="flex items-center gap-2 relative z-10">
+
+
+                                                                <div className={`flex items-center gap-2 relative z-10 ${msg.message_reactions && msg.message_reactions.length > 0 ? 'mb-4' : ''}`}>
+                                                                    {/* ── Universal Hover Timestamp (Side-Aligned) ── */}
+                                                                    <span 
+                                                                        className={`absolute top-1/2 -translate-y-1/2 ${
+                                                                            isMe ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'
+                                                                        } text-[10px] font-medium text-zinc-500 whitespace-nowrap opacity-0 group-hover/msg:opacity-100 transition-opacity pointer-events-none`}
+                                                                    >
+                                                                        {formatMessageTime(msg.created_at)}
+                                                                        {isMe && !msg.optimistic && (
+                                                                            <span className="ml-1">{msg.seen ? '· Seen' : ''}</span>
+                                                                        )}
+                                                                    </span>
+
                                                                     {/* Action Button & Popover */}
                                                                     {isMe && !msg.optimistic && (
-                                                                        <div className="relative flex items-center h-full">
-                                                                            {/* Close Overlay */}
-                                                                            {unsendMsgId === msg.id && (
-                                                                                <div 
-                                                                                    className="fixed inset-0 z-40" 
-                                                                                    onClick={() => setUnsendMsgId(null)} 
-                                                                                />
-                                                                            )}
-                                                                            
+                                                                        <div className="relative flex items-center self-center">
+                                                                            {/* ── Emoji Picker Popover anchored above the icon row ── */}
+                                                                            <AnimatePresence>
+                                                                                {activeReactMsg === msg.id && (
+                                                                                    <motion.div
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        initial={{ opacity: 0, scale: 0.9, y: 6 }}
+                                                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                                        exit={{ opacity: 0, scale: 0.9, y: 6 }}
+                                                                                        transition={{ duration: 0.15, ease: "easeOut" }}
+                                                                                        className="absolute bottom-full mb-3 right-0 z-[60] flex items-center gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
+                                                                                    >
+                                                                                        {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                                                                            <button
+                                                                                                key={emoji}
+                                                                                                onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
+                                                                                                className={`text-[26px] leading-none w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${
+                                                                                                    (msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
+                                                                                                        ? 'bg-zinc-800 ring-2 ring-purple-500 scale-[1.10] shadow-lg shadow-purple-500/20'
+                                                                                                        : ''
+                                                                                                }`}
+                                                                                            >
+                                                                                                {emoji}
+                                                                                            </button>
+                                                                                        ))}
+                                                                                        <div className="w-px h-7 bg-zinc-700 mx-1"></div>
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }}
+                                                                                            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors"
+                                                                                        >
+                                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                                        </button>
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
                                                                             <button
-                                                                                onClick={() => {
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
                                                                                     setConfirmDeleteId(msg.id);
                                                                                     setUnsendMsgId(null);
                                                                                 }}
@@ -1169,7 +1309,7 @@ export const MessagesPage = () => {
                                                                                 </svg>
                                                                             </button>
                                                                             <button
-                                                                                onClick={() => setUnsendMsgId(msg.id)}
+                                                                                onClick={(e) => { e.stopPropagation(); setUnsendMsgId(msg.id); }}
                                                                                 className={`p-1.5 rounded-full bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all duration-200 ease-out ${
                                                                                     unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-0 scale-90 group-hover/msg:opacity-100 group-hover/msg:scale-100'
                                                                                 }`}
@@ -1183,12 +1323,21 @@ export const MessagesPage = () => {
                                                                             <AnimatePresence>
                                                                                 {unsendMsgId === msg.id && (
                                                                                     <motion.div
+                                                                                        onClick={(e) => e.stopPropagation()}
                                                                                         initial={{ opacity: 0, scale: 0.9, x: 10 }}
                                                                                         animate={{ opacity: 1, scale: 1, x: 0 }}
                                                                                         exit={{ opacity: 0, scale: 0.9, x: 10 }}
                                                                                         className="absolute right-0 flex items-center gap-1 p-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl z-50 backdrop-blur-xl"
                                                                                     >
-                                                                                        <button className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors" title="React">
+                                                                                        <button 
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setActiveReactMsg(msg.id);
+                                                                                                setUnsendMsgId(null);
+                                                                                            }}
+                                                                                            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors" 
+                                                                                            title="React"
+                                                                                        >
                                                                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
                                                                                                 <circle cx="12" cy="12" r="10"></circle>
                                                                                                 <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -1276,6 +1425,35 @@ export const MessagesPage = () => {
                                                                         ${isContinuation && !isMe ? '!rounded-bl-[20px] !rounded-tl-[6px]' : ''}`}
                                                                     >
                                                                         {msg.content}
+
+                                                                        {/* ── Reaction Badges Overlay ── */}
+                                                                        {msg.message_reactions && msg.message_reactions.length > 0 && (
+                                                                            <div className={`absolute -bottom-4 ${isMe ? 'right-2 flex-row-reverse' : 'left-2 flex-row'} flex items-center gap-1 z-20`}>
+                                                                                {Object.entries(
+                                                                                    msg.message_reactions.reduce((acc, r) => {
+                                                                                        if(!acc[r.emoji]) acc[r.emoji] = { count: 0, hasMe: false };
+                                                                                        acc[r.emoji].count++;
+                                                                                        if(r.user_id === currentUser?.id) acc[r.emoji].hasMe = true;
+                                                                                        return acc;
+                                                                                    }, {} as Record<string, {count: number, hasMe: boolean}>)
+                                                                                ).map(([emoji, data]) => (
+                                                                                    <div
+                                                                                        key={emoji}
+                                                                                        onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
+                                                                                        className={`flex items-center gap-1.5 px-2 py-[3px] rounded-full border border-zinc-700/60 cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-sm ${
+                                                                                            data.hasMe 
+                                                                                                ? 'bg-purple-600 shadow-purple-500/20' 
+                                                                                                : 'bg-zinc-800 hover:bg-zinc-700'
+                                                                                        }`}
+                                                                                    >
+                                                                                        <span className="text-[14px] leading-none brightness-110 drop-shadow-sm">{emoji}</span>
+                                                                                        {data.count > 1 && (
+                                                                                            <span className={`text-[10px] font-bold tracking-wide mr-0.5 ${data.hasMe ? 'text-white' : 'text-zinc-300'}`}>{data.count}</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                     
                                                                     {/* Invisible fixed-width column for Read-Receipt rendering WITHOUT layout shifting! */}
@@ -1304,9 +1482,9 @@ export const MessagesPage = () => {
 
                                                                     {/* Action Button & Popover for INCOMING messages */}
                                                                     {!isMe && !msg.optimistic && (
-                                                                        <div className="relative flex items-center h-full">
+                                                                        <div className="relative flex items-center self-center">
                                                                             <button
-                                                                                onClick={() => setUnsendMsgId(msg.id)} // Reuse identically for strictly toggling popup DOM state
+                                                                                onClick={(e) => { e.stopPropagation(); setUnsendMsgId(msg.id); }}
                                                                                 className={`p-1.5 rounded-full bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all duration-200 ease-out ml-1 ${
                                                                                     unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-0 scale-90 group-hover/msg:opacity-100 group-hover/msg:scale-100'
                                                                                 }`}
@@ -1315,13 +1493,47 @@ export const MessagesPage = () => {
                                                                                     <polyline points="9 18 15 12 9 6"></polyline>
                                                                                 </svg>
                                                                             </button>
+
+                                                                            {/* ── Emoji Picker Popover for INCOMING messages ── */}
+                                                                            <AnimatePresence>
+                                                                                {activeReactMsg === msg.id && (
+                                                                                    <motion.div
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        initial={{ opacity: 0, scale: 0.9, y: 6 }}
+                                                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                                        exit={{ opacity: 0, scale: 0.9, y: 6 }}
+                                                                                        transition={{ duration: 0.15, ease: "easeOut" }}
+                                                                                        className="absolute bottom-full mb-3 left-0 z-[60] flex items-center gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
+                                                                                    >
+                                                                                        {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => (
+                                                                                            <button
+                                                                                                key={emoji}
+                                                                                                onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
+                                                                                                className={`text-[26px] leading-none w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${
+                                                                                                    (msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
+                                                                                                        ? 'bg-zinc-800 ring-2 ring-purple-500 scale-[1.10] shadow-lg shadow-purple-500/20'
+                                                                                                        : ''
+                                                                                                }`}
+                                                                                            >
+                                                                                                {emoji}
+                                                                                            </button>
+                                                                                        ))}
+                                                                                        <div className="w-px h-7 bg-zinc-700 mx-1"></div>
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }}
+                                                                                            className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors"
+                                                                                        >
+                                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                                        </button>
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
                                                                             
                                                                             <AnimatePresence>
                                                                                 {unsendMsgId === msg.id && (
-                                                                                    <>
-                                                                                        <div className="fixed inset-0 z-40" onClick={() => setUnsendMsgId(null)} />
-                                                                                        <motion.div
-                                                                                            initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                                                                                    <motion.div
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        initial={{ opacity: 0, scale: 0.9, x: -10 }}
                                                                                             animate={{ opacity: 1, scale: 1, x: 0 }}
                                                                                             exit={{ opacity: 0, scale: 0.9, x: -10 }}
                                                                                             className="absolute left-0 flex items-center gap-1 p-1 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl z-50 backdrop-blur-xl"
@@ -1372,7 +1584,15 @@ export const MessagesPage = () => {
                                                                                                     <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
                                                                                                 </svg>
                                                                                             </button>
-                                                                                            <button className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors" title="React">
+                                                                                            <button
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    setActiveReactMsg(msg.id);
+                                                                                                    setUnsendMsgId(null);
+                                                                                                }}
+                                                                                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                                                                                                title="React"
+                                                                                            >
                                                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
                                                                                                     <circle cx="12" cy="12" r="10"></circle>
                                                                                                     <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
@@ -1381,23 +1601,16 @@ export const MessagesPage = () => {
                                                                                                 </svg>
                                                                                             </button>
                                                                                         </motion.div>
-                                                                                    </>
                                                                                 )}
                                                                             </AnimatePresence>
                                                                         </div>
                                                                     )}
                                                                 </div>
 
-                                                                {/* Timestamp on hover */}
-                                                                {isLastInGroup && (
-                                                                    <span className="text-[10px] text-zinc-600 mt-1 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
-                                                                        {formatMessageTime(msg.created_at)}
-                                                                        {isMe && !msg.optimistic && (
-                                                                            <span className="ml-1">{msg.seen ? '· Seen' : ''}</span>
-                                                                        )}
-                                                                    </span>
-                                                                )}
+                                                                {/* (Timestamp logic migrated cleanly adjacent to the dynamic message array to prevent vertical layout shifts natively) */}
                                                             </div>
+                                                            {/* Right spacer for incoming messages — mirrors the read-receipt column on outgoing side */}
+                                                            {!isMe && <div className="w-[14px] flex-shrink-0" />}
                                                         </div>
                                                         </Fragment>
                                                     );
