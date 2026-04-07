@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
+import { broadcastNotificationPing } from '../../../lib/notificationStore';
+import { broadcastPostUpdate, subscribeToPostUpdates } from '../../../lib/postSyncStore';
 
 interface PostViewerModalProps {
     post: any;
@@ -12,22 +14,31 @@ interface PostViewerModalProps {
     onLikeUpdate?: (postId: string, isLiked: boolean, likeCount: number) => void;
     onSaveToggle?: (post: any, isSaved: boolean) => void;
     hideDeleteButton?: boolean;
+    initialTab?: 'details' | 'comments';
 }
 
-export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDelete, onLikeUpdate, onSaveToggle, hideDeleteButton = false }: PostViewerModalProps) => {
+export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDelete, onLikeUpdate, onSaveToggle, hideDeleteButton = false, initialTab = 'details' }: PostViewerModalProps) => {
     const [isLiked, setIsLiked] = useState(post.is_liked_by_me || false);
     const [likeCount, setLikeCount] = useState(post.likes_count || 0);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [activeTab, setActiveTab] = useState<'details' | 'comments'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'comments'>(initialTab);
     const [comments, setComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState('');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [isSaved, setIsSaved] = useState(post.is_saved_by_me || false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isLoadingComments, setIsLoadingComments] = useState(true);
+
+    // Sync from parent if post updates (e.g., from parent optimistic updates)
+    useEffect(() => {
+        setIsLiked(post.is_liked_by_me || false);
+        setLikeCount(post.likes_count || 0);
+    }, [post.is_liked_by_me, post.likes_count]);
 
     useEffect(() => {
         if (!post) return;
+        setIsLoadingComments(true);
         fetchComments();
     }, [post.id]);
 
@@ -35,6 +46,33 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
     useEffect(() => {
         setIsSaved(post.is_saved_by_me || false);
     }, [post.is_saved_by_me]);
+
+    // REAL-TIME BROADCAST SUBSCRIPTION
+    useEffect(() => {
+        if (!post) return;
+        const unsubscribe = subscribeToPostUpdates((payload) => {
+            if (payload.postId !== post.id) return;
+            
+            // Note: We only let the author/remote user override our state if it's external,
+            // but for simplicity and guaranteeing sync, we can just apply their data.
+            // When we make changes, we optimistically update BEFORE broadcasting, so it's instantaneous.
+            switch (payload.action) {
+                case 'like':
+                case 'unlike':
+                    setLikeCount(payload.data?.likes_count ?? likeCount);
+                    break;
+                case 'comment_add':
+                    // Silently ignore — user can manually refresh via the refresh button
+                    break;
+                case 'comment_delete':
+                    if (payload.data?.comment_id) {
+                        setComments(prev => prev.filter(c => c.id !== payload.data!.comment_id));
+                    }
+                    break;
+            }
+        });
+        return () => { unsubscribe(); };
+    }, [post?.id, likeCount]);
 
     const handleToggleSave = async () => {
         if (!currentUser || !post || isSaving) return;
@@ -45,6 +83,7 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
         setIsSaved(newSavedState);
         // Notify parent immediately for instant UI update
         onSaveToggle?.(post, newSavedState);
+        broadcastPostUpdate({ postId: post.id, action: newSavedState ? 'save' : 'unsave' });
 
         try {
             if (newSavedState) {
@@ -68,20 +107,25 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
 
     const fetchComments = async () => {
         if (!post) return;
-        const { data, error } = await supabase
-            .from('comments')
-            .select(`
-                *,
-                profiles:username (username, avatar_url)
-            `)
-            .eq('post_id', post.id)
-            .order('created_at', { ascending: true });
+        const [{ data, error }] = await Promise.all([
+            supabase
+                .from('comments')
+                .select(`
+                    *,
+                    profiles:username (username, avatar_url)
+                `)
+                .eq('post_id', post.id)
+                .order('created_at', { ascending: true }),
+            new Promise(res => setTimeout(res, 1500))
+        ]);
 
         if (error) {
             console.error("Error fetching comments:", error);
+            setIsLoadingComments(false);
             return;
         }
         setComments(data || []);
+        setIsLoadingComments(false);
     };
 
     const handleToggleLike = async () => {
@@ -93,28 +137,37 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
         setIsLiked(newLikedState);
         setLikeCount(newLikeCount);
 
-        // Notify parent of the update
+        // Notify parent and broadcast
         onLikeUpdate?.(post.id, newLikedState, newLikeCount);
+        broadcastPostUpdate({ postId: post.id, action: newLikedState ? 'like' : 'unlike', data: { likes_count: newLikeCount } });
 
         try {
             if (newLikedState) {
-                await supabase.from('likes').insert({
+                const { error } = await supabase.from('likes').insert({
                     username: currentUser.username,
                     post_id: post.id,
                     post_author_username: post.username,
                     post_url: post.image_url
                 });
+                if (error) throw error;
+                // Instantly ping the author
+                if (currentUser.username !== post.username) {
+                    broadcastNotificationPing(post.username);
+                }
             } else {
-                await supabase.from('likes').delete()
+                const { error } = await supabase.from('likes').delete()
                     .eq('username', currentUser.username)
                     .eq('post_id', post.id);
+                if (error) throw error;
             }
         } catch (error) {
             console.error("Error toggling like:", error);
             // Revert on error
             setIsLiked(!newLikedState);
-            setLikeCount((prev: number) => newLikedState ? prev - 1 : prev + 1);
-            onLikeUpdate?.(post.id, !newLikedState, newLikedState ? likeCount : likeCount + 1);
+            const revertedCount = newLikedState ? likeCount : likeCount + 1;
+            setLikeCount(revertedCount);
+            onLikeUpdate?.(post.id, !newLikedState, revertedCount);
+            broadcastPostUpdate({ postId: post.id, action: !newLikedState ? 'like' : 'unlike', data: { likes_count: revertedCount } });
         }
     };
 
@@ -142,6 +195,9 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
 
             setComments((prev: any[]) => [...prev, data]);
             setNewComment('');
+            
+            // Broadcast comment added
+            broadcastPostUpdate({ postId: post.id, action: 'comment_add', data });
         } catch (error) {
             console.error("Error posting comment:", error);
         } finally {
@@ -159,6 +215,9 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
             if (error) throw error;
 
             setComments((prev: any[]) => prev.filter(c => c.id !== commentId));
+            
+            // Broadcast comment deleted
+            broadcastPostUpdate({ postId: post.id, action: 'comment_delete', data: { comment_id: commentId } });
         } catch (error) {
             console.error("Error deleting comment:", error);
             alert("Failed to delete comment");
@@ -216,6 +275,7 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
             if (error) throw error;
 
             onDelete(post.id);
+            broadcastPostUpdate({ postId: post.id, action: 'delete' });
             onClose();
         } catch (error) {
             console.error("Error deleting post:", error);
@@ -237,8 +297,11 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
             />
 
             <motion.div
-                layoutId={`post-${post.id}`}
-                className="relative bg-zinc-900 rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-800 transition-all duration-300 flex flex-col md:flex-row w-full md:w-max mx-auto h-auto md:items-stretch max-h-[90vh] md:max-w-[95vw]"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="relative bg-zinc-900 rounded-[2rem] overflow-hidden shadow-2xl border border-zinc-800 flex flex-col md:flex-row w-full md:w-max mx-auto h-auto md:items-stretch max-h-[90vh] md:max-w-[95vw] z-50"
             >
                 {/* Close Button */}
                 <button
@@ -339,51 +402,102 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
                             </div>
                         ) : (
                             <div className="flex flex-col h-full">
-                                <div className="flex-1 p-6 space-y-6">
-                                    {comments.length > 0 ? (
-                                        comments.map((comment) => (
-                                            <div key={comment.id} className="flex gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden shrink-0">
-                                                    {comment.profiles?.avatar_url ? (
-                                                        <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs">
-                                                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
-                                                        </div>
+                                {/* Clickable zone: header + separator — hover covers full area between both lines */}
+                                <div
+                                    onClick={() => {
+                                        if (isLoadingComments) return;
+                                        setIsLoadingComments(true);
+                                        fetchComments();
+                                    }}
+                                    className={`group transition-colors ${!isLoadingComments ? 'cursor-pointer hover:bg-zinc-900/40' : 'cursor-default'}`}
+                                >
+                                    {/* Header row */}
+                                    <div className="flex items-start justify-between px-6 pt-4 pb-1">
+                                        <div>
+                                            <p className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Comments</p>
+                                            <p className="text-[10px] text-zinc-500 mt-0.5">Tap ↻ to load new comments</p>
+                                        </div>
+                                        <div className={`p-1.5 mt-0.5 ${isLoadingComments ? 'opacity-40' : 'text-zinc-400'}`}>
+                                            <svg
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                                                className={`w-4 h-4 ${isLoadingComments ? 'animate-spin text-indigo-400' : 'text-zinc-500'}`}
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    {/* Animated dot-wave separator — positioned at the very bottom of the hover zone */}
+                                    <div className="relative flex items-end w-full h-2">
+                                        {isLoadingComments ? (
+                                            <div className="flex items-center gap-1.5 w-full pb-0.5">
+                                                {[0,1,2,3,4,5,6,7,8,9].map(i => (
+                                                    <div
+                                                        key={i}
+                                                        className="flex-1 h-1 rounded-full bg-indigo-500"
+                                                        style={{
+                                                            animation: 'dotWave 1.2s ease-in-out infinite',
+                                                            animationDelay: `${i * 0.1}s`,
+                                                            opacity: 0.3,
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-px bg-zinc-900 group-hover:bg-zinc-800 transition-colors" />
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 p-6 pt-2 space-y-6">
+                                {isLoadingComments ? (
+                                    <div className="flex flex-col items-center justify-center h-56 gap-2">
+                                        <p className="text-zinc-700 text-xs font-medium tracking-wide">Fetching comments...</p>
+                                    </div>
+                                ) : comments.length > 0 ? (
+                                    comments.map((comment) => (
+                                        <div key={comment.id} className="flex gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden shrink-0">
+                                                {comment.profiles?.avatar_url ? (
+                                                    <img src={comment.profiles.avatar_url} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-zinc-500 text-xs">
+                                                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-white font-bold text-xs">{comment.profiles?.username}</span>
+                                                        <span className="text-zinc-500 text-[10px]">
+                                                            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                                                        </span>
+                                                    </div>
+                                                    {(comment.username === currentUser?.username || post.username === currentUser?.username) && (
+                                                        <button
+                                                            onClick={() => handleDeleteComment(comment.id)}
+                                                            className="text-zinc-600 hover:text-red-500 transition-colors p-1"
+                                                        >
+                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                                        </button>
                                                     )}
                                                 </div>
-                                                <div className="flex-1">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-white font-bold text-xs">{comment.profiles?.username}</span>
-                                                            <span className="text-zinc-500 text-[10px]">
-                                                                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                                                            </span>
-                                                        </div>
-                                                        {(comment.username === currentUser?.username || post.username === currentUser?.username) && (
-                                                            <button
-                                                                onClick={() => handleDeleteComment(comment.id)}
-                                                                className="text-zinc-600 hover:text-red-500 transition-colors p-1"
-                                                            >
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-zinc-300 text-sm leading-snug">{comment.content}</p>
-                                                </div>
+                                                <p className="text-zinc-300 text-sm leading-snug">{comment.content}</p>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-                                            <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-zinc-700">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                                                </svg>
-                                            </div>
-                                            <h4 className="text-white font-bold text-sm mb-1">No comments yet</h4>
-                                            <p className="text-zinc-500 text-xs">Start the conversation by adding a comment below.</p>
                                         </div>
-                                    )}
+                                    ))
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+                                        <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8 text-zinc-700">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                                            </svg>
+                                        </div>
+                                        <h4 className="text-white font-bold text-sm mb-1">No comments yet</h4>
+                                        <p className="text-zinc-500 text-xs">Start the conversation by adding a comment below.</p>
+                                    </div>
+                                )}
                                 </div>
 
                                 {/* Comment Input */}
@@ -505,12 +619,14 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+                            onClick={() => setShowDeleteConfirm(false)}
                         >
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0.9, opacity: 0 }}
                                 className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl relative overflow-hidden"
+                                onClick={(e) => e.stopPropagation()}
                             >
                                 <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 text-red-500"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>

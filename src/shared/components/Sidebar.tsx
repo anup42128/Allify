@@ -1,4 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { unreadNotificationCount, subscribeToNotifications } from '../../lib/notificationStore';
+import { cachedConversations, subscribeToChatUpdates } from '../../lib/chatStore';
 
 const navItems = [
     {
@@ -77,8 +80,38 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
+    const [unreadNotifCount, setUnreadNotifCount] = useState(unreadNotificationCount);
+    const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+    const location = useLocation();
+    
+    // Only show the right border on Search and Notifications pages
+    const showBorder = location.pathname === '/search' || location.pathname === '/notifications';
+
+    // Sync Notifications Badge
+    useEffect(() => {
+        setUnreadNotifCount(unreadNotificationCount);
+        const unsubscribe = subscribeToNotifications(() => {
+            setUnreadNotifCount(unreadNotificationCount);
+        });
+        return () => { unsubscribe(); };
+    }, []);
+
+    // Sync Messages Badge
+    useEffect(() => {
+        const calculateMessages = () => {
+            if (!cachedConversations) return 0;
+            return cachedConversations.reduce((sum, conv) => sum + (conv.unread_count || 0), 0);
+        };
+        setUnreadMsgCount(calculateMessages());
+
+        const unsubscribe = subscribeToChatUpdates(() => {
+            setUnreadMsgCount(calculateMessages());
+        });
+        return () => { unsubscribe(); };
+    }, []);
+
     return (
-        <div className="fixed left-0 top-0 h-full w-20 hover:w-52 transition-all duration-300 ease-in-out group z-50 bg-black">
+        <div className={`fixed left-0 top-0 h-full w-20 hover:w-52 transition-[width] duration-300 ease-in-out group z-50 bg-black ${showBorder ? 'border-r border-zinc-900/50' : ''}`}>
             {/* Logo Section */}
             <div className="absolute top-1 left-0 w-20 flex justify-center py-3">
                 <svg
@@ -95,23 +128,40 @@ export const Sidebar = () => {
 
             {/* Navigation Items */}
             <div className="mt-24 flex flex-col gap-3 px-1">
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            `flex items-center px-4 py-3 rounded-xl transition-all group/item ${isActive ? 'bg-zinc-800/80' : 'hover:bg-zinc-800/80'
-                            }`
-                        }
-                    >
-                        <div className="min-w-[2rem] flex justify-center text-white">
-                            {item.icon}
-                        </div>
-                        <span className="ml-4 text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 whitespace-nowrap overflow-hidden">
-                            {item.label}
-                        </span>
-                    </NavLink>
-                ))}
+                {navItems.map((item) => {
+                    const isNotifs = item.path === '/notifications';
+                    const isMsgs = item.path === '/messages';
+                    let badgeCount = 0;
+                    if (isNotifs) badgeCount = unreadNotifCount;
+                    if (isMsgs) badgeCount = unreadMsgCount;
+
+                    return (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            className={({ isActive }) =>
+                                `flex items-center px-4 py-3 rounded-xl transition-all group/item ${isActive ? 'bg-zinc-800/80' : 'hover:bg-zinc-800/80'}`
+                            }
+                        >
+                            <div className="min-w-[2rem] flex justify-center text-white relative">
+                                {item.icon}
+                                {badgeCount > 0 && (
+                                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-black">
+                                        {badgeCount > 9 ? '9+' : badgeCount}
+                                    </div>
+                                )}
+                            </div>
+                            <span className="ml-4 flex items-center gap-2 text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 whitespace-nowrap overflow-hidden">
+                                {item.label}
+                                {badgeCount > 0 && (
+                                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                        {badgeCount > 9 ? '9+' : badgeCount}
+                                    </span>
+                                )}
+                            </span>
+                        </NavLink>
+                    );
+                })}
             </div>
         </div>
     );

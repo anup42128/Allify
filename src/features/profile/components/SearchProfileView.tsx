@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { PostDetailModal } from './PostDetailModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { broadcastNotificationPing } from '../../../lib/notificationStore';
+import { subscribeToPostUpdates } from '../../../lib/postSyncStore';
 
 interface SearchProfileViewProps {
     username: string;
@@ -29,6 +31,33 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
     const [localAllied, setLocalAllied] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
     const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
+
+    // REAL-TIME CACHE SYNC
+    useEffect(() => {
+        const unsubscribe = subscribeToPostUpdates((payload) => {
+            setPosts(prev => prev.map(p => {
+                if (p.id !== payload.postId) return p;
+                const newP = { ...p };
+                if (payload.action === 'like') {
+                    newP.is_liked_by_me = true;
+                    if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
+                } else if (payload.action === 'unlike') {
+                    newP.is_liked_by_me = false;
+                    if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
+                } else if (payload.action === 'save') {
+                    newP.is_saved_by_me = true;
+                } else if (payload.action === 'unsave') {
+                    newP.is_saved_by_me = false;
+                }
+                return newP;
+            }));
+            
+            if (payload.action === 'delete') {
+                setPosts(prev => prev.filter(p => p.id !== payload.postId));
+            }
+        });
+        return () => { unsubscribe(); };
+    }, []);
 
     useEffect(() => {
         const fetchUserAndProfile = async () => {
@@ -221,6 +250,9 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                 setLocalAllies(prev => prev + 1);
                 if (nowMutual) setLocalAllied(prev => prev + 1);
             }
+            // Instantly ping the target profile so they get a live notification
+            broadcastNotificationPing(profile.username);
+
         } catch (err) {
             console.error('Follow toggle error:', err);
         } finally {

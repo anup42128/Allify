@@ -44,7 +44,7 @@ export const SearchPage = () => {
                 initial={{ x: -375, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="w-[375px] flex-shrink-0 h-full border-r border-l border-zinc-800 bg-black flex flex-col z-10"
+                className="w-[375px] flex-shrink-0 h-full border-r border-zinc-900/50 bg-black flex flex-col z-10"
             >
                 <div className="pt-8 pb-4 px-6">
                     <h1 className="text-white text-2xl font-bold mb-6">Search</h1>

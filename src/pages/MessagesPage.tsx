@@ -1120,15 +1120,27 @@ export const MessagesPage = () => {
                                             </div>
                                         ))}
                                     </div>
-                                ) : messages.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center min-h-full gap-3 text-center py-8">
-                                        <Avatar user={displayUser} size="lg" />
-                                        <p className="text-white font-bold">{displayUser.full_name || displayUser.username}</p>
-                                        <p className="text-zinc-500 text-sm">@{displayUser.username}</p>
-                                        <p className="text-zinc-600 text-xs mt-2 max-w-[220px] leading-relaxed">This is the beginning of your conversation. Say something!</p>
-                                    </div>
                                 ) : (
-                                    <div className="flex flex-col justify-end min-h-full pt-2 pb-0 space-y-0.5">
+                                    <div className="flex flex-col min-h-full pt-2 pb-0 space-y-0.5">
+                                        {/* Scrollable Conversation Intro Header */}
+                                        <div className="flex flex-col items-center justify-start shrink-0 gap-3 text-center pt-24 pb-12">
+                                            <div className="transform scale-[2] mb-6 drop-shadow-2xl">
+                                                <Avatar user={displayUser} size="lg" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400">
+                                                    {displayUser.full_name || displayUser.username}
+                                                </h3>
+                                                <p className="text-zinc-500 font-medium tracking-wide text-sm">@{displayUser.username}</p>
+                                            </div>
+                                            <p className="text-zinc-400 text-sm max-w-[280px] leading-relaxed mt-4">
+                                                Don't be shy! Break the ice and start the conversation. ✨
+                                            </p>
+                                        </div>
+
+                                        {/* Expanding spacer forces early messages to sit at the bottom edge */}
+                                        <div className="flex-1" />
+
                                         {groupedMessages.map(group => (
                                             <div key={group.date}>
                                                 {/* Date separator */}
@@ -1669,100 +1681,103 @@ export const MessagesPage = () => {
                             </div>
 
                             {/* Message Input */}
-                            <div className="px-4 pb-5 pt-2 flex-shrink-0 bg-black flex flex-col relative w-full">
+                            <div className="px-4 pb-3 pt-2 flex-shrink-0 bg-black flex flex-col relative w-full">
                                 
-                                {/* -- ACTIVE REPLY PREVIEW UI -- */}
-                                <AnimatePresence>
-                                    {activeReplyMsg && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                                            transition={{ type: 'spring', bounce: 0.4, duration: 0.5 }}
-                                            className="w-[calc(100%-48px)] self-start ml-2 mb-2 bg-gradient-to-t from-zinc-800/80 to-zinc-900/60 border border-zinc-700/50 rounded-2xl flex items-center backdrop-blur-xl relative overflow-hidden group/reply"
-                                        >
-                                            {/* Accent Left Bar */}
-                                            <div className="w-1 h-full bg-blue-500 absolute left-0 top-0 bottom-0" />
-                                            
-                                            {/* Content Block */}
-                                            <div className="flex-1 py-2 px-4 pl-4 overflow-hidden">
-                                                <div className="flex items-center justify-between mb-0.5 relative z-10">
-                                                    <span className="text-[11px] font-bold text-blue-400 tracking-wide">
-                                                        {activeReplyMsg.sender_id === currentUser.id ? 'Replying to yourself' : `Replying to ${displayUser.username}`}
-                                                    </span>
-                                                    <button 
-                                                        onClick={() => setActiveReplyMsg(null)}
-                                                        className="w-5 h-5 rounded-full bg-zinc-800/60 hover:bg-zinc-700/80 flex items-center justify-center text-zinc-400 hover:text-white transition-colors absolute right-0 top-0"
-                                                    >
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                    </button>
+                                {/* -- UNIFIED INPUT & REPLY CONTAINER -- */}
+                                <div className="flex flex-col bg-zinc-900 rounded-[24px] border border-zinc-800/60 focus-within:border-zinc-500 transition-colors shadow-inner relative z-20 overflow-hidden">
+                                    
+                                    <AnimatePresence>
+                                        {activeReplyMsg && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
+                                                className="w-full flex items-center bg-zinc-800/30 border-b border-zinc-800/60 relative overflow-hidden"
+                                            >
+                                                {/* Accent Left Bar */}
+                                                <div className="w-1 h-full bg-blue-500 absolute left-0 top-0 bottom-0" />
+                                                
+                                                {/* Content Block */}
+                                                <div className="flex-1 py-2.5 px-4 pl-4 overflow-hidden relative">
+                                                    <div className="flex items-center justify-between mb-0.5 relative z-10 pr-8">
+                                                        <span className="text-[11px] font-bold text-blue-400 tracking-wide">
+                                                            {activeReplyMsg.sender_id === currentUser.id ? 'Replying to yourself' : `Replying to ${displayUser.username}`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="relative max-h-[38px] overflow-hidden">
+                                                        <p className="text-xs text-zinc-400 leading-[1.3] whitespace-pre-wrap break-words pr-8 line-clamp-2">{activeReplyMsg.content}</p>
+                                                    </div>
                                                 </div>
-                                                <div className="relative max-h-[38px] overflow-hidden">
-                                                    <p className="text-xs text-zinc-300 leading-[1.3] whitespace-pre-wrap break-words pr-5 line-clamp-2">{activeReplyMsg.content}</p>
-                                                    {/* Seamless fade gradient explicitly for wrapping long text psycholohically */}
-                                                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-[#202024]/90 to-transparent pointer-events-none" />
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
 
-                                <div className="flex items-end gap-2 bg-zinc-900 rounded-[24px] p-1.5 pl-4 border border-zinc-800/60 focus-within:border-zinc-500 transition-colors shadow-inner relative z-20">
-                                    <textarea
-                                        ref={inputRef}
-                                        rows={1}
-                                        maxLength={1111}
-                                        value={inputText}
-                                        onChange={handleTextareaChange}
-                                        onKeyDown={handleKeyDown}
-                                        placeholder={`Message ${displayUser.username}...`}
-                                        className="flex-1 min-w-0 break-words bg-transparent text-white text-base placeholder-zinc-500 resize-none focus:outline-none py-1.5 max-h-[120px]"
-                                        style={{ minHeight: '24px' }}
-                                        autoFocus
-                                    />
-                                    <button
-                                        onClick={sendMessage}
-                                        disabled={!inputText.trim()}
-                                        className={`w-9 h-9 flex items-center justify-center flex-shrink-0 transition-colors duration-150 ${
-                                            inputText.trim() 
-                                                ? 'text-white active:scale-95 cursor-pointer' 
-                                                : 'text-zinc-600 cursor-default'
-                                        }`}
-                                    >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                                            <polygon points="12 3 4 21 12 17 20 21"></polygon>
-                                            <line x1="12" y1="3" x2="12" y2="17"></line>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div className="h-6 mt-1 flex items-center justify-center relative overflow-hidden">
-                                    <AnimatePresence mode="wait">
-                                        {inputText.length >= 1111 ? (
-                                            <motion.p
-                                                key="limit"
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -10 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="text-red-400 text-[11px] font-medium absolute"
-                                            >
-                                                You've reached the 1,111 character limit.
-                                            </motion.p>
-                                        ) : (
-                                            <motion.p
-                                                key="hint"
-                                                initial={{ opacity: 0, y: -10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: 10 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="text-zinc-700 text-[10px] absolute flex items-center gap-1"
-                                            >
-                                                <span>Enter to send  ·  Shift + Enter for new line</span>
-                                                {inputText.length > 1000 && <span className="text-zinc-500 font-medium">({1111 - inputText.length})</span>}
-                                            </motion.p>
+                                                <button 
+                                                    onClick={() => setActiveReplyMsg(null)}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full hover:bg-zinc-700/60 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                                                >
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </motion.div>
                                         )}
                                     </AnimatePresence>
+
+                                    <div className="flex items-end gap-2 p-1.5 pl-4 bg-transparent w-full">
+                                        <textarea
+                                            ref={inputRef}
+                                            rows={1}
+                                            maxLength={1111}
+                                            value={inputText}
+                                            onChange={handleTextareaChange}
+                                            onKeyDown={handleKeyDown}
+                                            placeholder={`Message ${displayUser.username}...`}
+                                            className="flex-1 min-w-0 break-words bg-transparent text-white text-base placeholder-zinc-500 resize-none focus:outline-none py-1.5 max-h-[120px]"
+                                            style={{ minHeight: '24px' }}
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={sendMessage}
+                                            disabled={!inputText.trim()}
+                                            className={`w-9 h-9 flex items-center justify-center flex-shrink-0 transition-colors duration-150 ${
+                                                inputText.trim() 
+                                                    ? 'text-white active:scale-95 cursor-pointer' 
+                                                    : 'text-zinc-600 cursor-default'
+                                            }`}
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
+                                                <polygon points="12 3 4 21 12 17 20 21"></polygon>
+                                                <line x1="12" y1="3" x2="12" y2="17"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
+                                {inputText.length >= 1000 && (
+                                    <div className="h-6 mt-1 flex items-center justify-end relative overflow-hidden pr-2">
+                                        <AnimatePresence mode="wait">
+                                            {inputText.length >= 1111 ? (
+                                                <motion.p
+                                                    key="limit"
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="text-red-400 text-[11px] font-medium absolute"
+                                                >
+                                                    You've reached the 1,111 character limit.
+                                                </motion.p>
+                                            ) : (
+                                                <motion.p
+                                                    key="hint"
+                                                    initial={{ opacity: 0, y: -10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: 10 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="text-zinc-500 font-medium text-[10px] absolute flex items-center gap-1"
+                                                >
+                                                    <span>({1111 - inputText.length})</span>
+                                                </motion.p>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                )}
                             </div>
                         </motion.div>
                     ) : (

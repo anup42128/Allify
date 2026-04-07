@@ -3,12 +3,14 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../shared/components/Sidebar';
 import { supabase } from '../lib/supabase';
 import { initGlobalChatSync } from '../lib/chatStore';
+import { initGlobalNotificationSync } from '../lib/notificationStore';
 
 export const MainLayout = () => {
     useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
             if (data?.user) {
                 initGlobalChatSync(data.user.id);
+                initGlobalNotificationSync(data.user.id);
             }
         });
     }, []);
