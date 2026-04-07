@@ -349,7 +349,7 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
                 {/* Right: Details */}
                 <div className="w-full md:w-[400px] flex flex-col bg-zinc-950 shrink-0 md:border-l border-zinc-900">
                     {/* Header */}
-                    <div className="p-6 border-b border-zinc-900 flex items-center justify-between">
+                    <div className={`p-6 flex items-center justify-between ${activeTab === 'details' ? 'border-b border-zinc-900' : ''}`}>
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden">
                                 {postAuthor?.avatar_url ? (
@@ -409,7 +409,7 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
                                         setIsLoadingComments(true);
                                         fetchComments();
                                     }}
-                                    className={`group transition-colors ${!isLoadingComments ? 'cursor-pointer hover:bg-zinc-900/40' : 'cursor-default'}`}
+                                    className={`group sticky top-0 z-10 bg-zinc-950 transition-all border-t border-b border-zinc-900 ${!isLoadingComments ? 'cursor-pointer hover:bg-zinc-900/40 hover:border-zinc-800/50' : 'cursor-default'}`}
                                 >
                                     {/* Header row */}
                                     <div className="flex items-start justify-between px-6 pt-4 pb-1">
@@ -427,10 +427,10 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
                                         </div>
                                     </div>
 
-                                    {/* Animated dot-wave separator — positioned at the very bottom of the hover zone */}
-                                    <div className="relative flex items-end w-full h-2">
-                                        {isLoadingComments ? (
-                                            <div className="flex items-center gap-1.5 w-full pb-0.5">
+                                    {/* Animated loader zone — only has height while loading */}
+                                    <div className="relative flex items-end w-full">
+                                        {isLoadingComments && (
+                                            <div className="flex items-center gap-1.5 w-full h-2 px-6 pb-0.5">
                                                 {[0,1,2,3,4,5,6,7,8,9].map(i => (
                                                     <div
                                                         key={i}
@@ -443,9 +443,8 @@ export const PostDetailModal = ({ post, currentUser, postAuthor, onClose, onDele
                                                     />
                                                 ))}
                                             </div>
-                                        ) : (
-                                            <div className="w-full h-px bg-zinc-900 group-hover:bg-zinc-800 transition-colors" />
                                         )}
+                                        {!isLoadingComments && <div className="h-2" />}
                                     </div>
                                 </div>
 
