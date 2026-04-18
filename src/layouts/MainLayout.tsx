@@ -4,6 +4,7 @@ import { Sidebar } from '../shared/components/Sidebar';
 import { supabase } from '../lib/supabase';
 import { initGlobalChatSync } from '../lib/chatStore';
 import { initGlobalNotificationSync } from '../lib/notificationStore';
+import { initGlobalPresenceSync } from '../lib/presenceStore';
 
 export const MainLayout = () => {
     useEffect(() => {
@@ -11,6 +12,7 @@ export const MainLayout = () => {
             if (data?.user) {
                 initGlobalChatSync(data.user.id);
                 initGlobalNotificationSync(data.user.id);
+                initGlobalPresenceSync(data.user.id);
             }
         });
     }, []);

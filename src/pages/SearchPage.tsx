@@ -2,12 +2,19 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { SearchProfileView } from '../features/profile/components/SearchProfileView';
+import { getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches, type RecentSearchUser } from '../lib/recentSearchStore';
 
 export const SearchPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
+    const [recentSearches, setRecentSearches] = useState<RecentSearchUser[]>([]);
+
+    // Load recents on mount
+    useEffect(() => {
+        setRecentSearches(getRecentSearches());
+    }, []);
 
     useEffect(() => {
         if (!searchQuery.trim()) {
@@ -69,8 +76,72 @@ export const SearchPage = () => {
                 <div className="flex-1 overflow-y-auto px-4 pt-4 border-t border-zinc-800/50 mt-2">
                     {searchQuery.trim() === '' ? (
                         <div className="px-2">
-                            <p className="text-zinc-500 text-sm font-semibold mb-3">Recent</p>
-                            <p className="text-zinc-600 text-sm italic">No recent searches.</p>
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-zinc-500 text-sm font-semibold">Recent</p>
+                                {recentSearches.length > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            clearRecentSearches();
+                                            setRecentSearches([]);
+                                        }}
+                                        className="text-blue-400 text-xs font-semibold hover:text-blue-300 transition-colors"
+                                    >
+                                        Clear all
+                                    </button>
+                                )}
+                            </div>
+                            {recentSearches.length === 0 ? (
+                                <p className="text-zinc-600 text-sm italic">No recent searches.</p>
+                            ) : (
+                                <div className="flex flex-col gap-1">
+                                    {recentSearches.map((user) => (
+                                        <div
+                                            key={user.id}
+                                            className="group flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-zinc-800/50"
+                                        >
+                                            <div
+                                                className="flex items-center gap-3 flex-1 min-w-0"
+                                                onClick={() => {
+                                                    addRecentSearch(user);
+                                                    setRecentSearches(getRecentSearches());
+                                                    setSelectedUser(user);
+                                                }}
+                                            >
+                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 border border-zinc-700/50">
+                                                    {user.avatar_url ? (
+                                                        <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+                                                                <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col flex-1 min-w-0">
+                                                    <span className="text-white font-semibold text-sm truncate">{user.username}</span>
+                                                    {user.full_name && (
+                                                        <span className="text-zinc-500 text-sm truncate">{user.full_name}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeRecentSearch(user.id);
+                                                    setRecentSearches(getRecentSearches());
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full text-zinc-600 hover:text-zinc-300 hover:bg-zinc-700/50 transition-all flex-shrink-0"
+                                                title="Remove"
+                                            >
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : isSearching ? (
                         <div className="flex justify-center py-4">
@@ -84,7 +155,11 @@ export const SearchPage = () => {
                             {searchResults.map((user) => (
                                 <div 
                                     key={user.id} 
-                                    onClick={() => setSelectedUser(user)}
+                                    onClick={() => {
+                                        addRecentSearch({ id: user.id, username: user.username, full_name: user.full_name, avatar_url: user.avatar_url });
+                                        setRecentSearches(getRecentSearches());
+                                        setSelectedUser(user);
+                                    }}
                                     className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${selectedUser?.id === user.id ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'}`}
                                 >
                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">

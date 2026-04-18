@@ -1,4 +1,4 @@
-import type { Conversation, Message } from '../pages/MessagesPage';
+import type { Conversation, Message } from '../types/chat';
 import { supabase } from './supabase';
 
 // ─── Global State Variables ────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ export const fetchGlobalConversations = async (userId: string) => {
 
             const { data: otherProfile } = await supabase
                 .from('profiles')
-                .select('id, username, full_name, avatar_url')
+                .select('id, username, full_name, avatar_url, last_seen')
                 .eq('id', otherUserId)
                 .single();
 
