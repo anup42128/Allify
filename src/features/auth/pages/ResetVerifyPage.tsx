@@ -196,12 +196,12 @@ export const ResetVerifyPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu">
-                <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <div className="w-full max-w-md z-10 px-6 relative">
+                <div className="min-h-full w-full flex items-center justify-center py-6 pb-[12vh] md:pb-0">
+                    <div className="w-full max-w-md z-10 px-6 relative mt-16 md:mt-0">
                         {/* Back Button */}
                         <button
                             onClick={() => navigate('/auth/forgot-password')}
-                            className="absolute top-0 left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group whitespace-nowrap z-50 mt-4"
+                            className="absolute -top-14 md:top-0 left-4 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium whitespace-nowrap"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -214,7 +214,7 @@ export const ResetVerifyPage = () => {
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="text-5xl font-black tracking-tight mb-12 pb-4 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-12"
+                            className="text-5xl md:text-6xl font-black tracking-tight mb-8 md:mb-12 pb-4 text-center text-white drop-shadow-3xl mt-4 md:mt-12 leading-none"
                         >
                             Allify
                         </motion.h1>
@@ -231,9 +231,9 @@ export const ResetVerifyPage = () => {
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5, delay: 0.4, type: "spring" }}
-                                    className="w-20 h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center"
+                                    className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-10 h-10 text-indigo-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 md:w-10 md:h-10 text-indigo-400">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
                                     </svg>
                                 </motion.div>
@@ -269,7 +269,7 @@ export const ResetVerifyPage = () => {
                                             value={otp}
                                             onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                                             onKeyDown={(e) => e.key === 'Enter' && handleVerifyOtp()}
-                                            className="w-full px-5 py-4 rounded-xl bg-white/[0.08] border border-white/10 text-white placeholder-gray-500 text-center text-3xl font-mono tracking-[0.5em] focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.12] transition-all shadow-inner transform-gpu"
+                                            className="w-full px-5 py-4 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/[0.08] border border-white/5 md:border-white/10 text-white placeholder-gray-600 text-center text-3xl font-mono tracking-[0.4em] md:tracking-[0.5em] focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all shadow-inner transform-gpu backdrop-blur-md"
                                             autoFocus
                                         />
                                     </div>
@@ -290,7 +290,7 @@ export const ResetVerifyPage = () => {
                                 <button
                                     onClick={handleVerifyOtp}
                                     disabled={isLoading || otp.length < 6}
-                                    className="w-full px-8 py-3.5 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)]"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)]"
                                 >
                                     {isLoading ? (
                                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -301,25 +301,23 @@ export const ResetVerifyPage = () => {
                                     <span>{isLoading ? 'Verifying...' : 'Verify Code'}</span>
                                 </button>
 
-                                <div className="text-center pt-4">
-                                    <p className="text-sm text-gray-400">
-                                        Didn't receive the code?{' '}
-                                        <button
-                                            onClick={handleResend}
-                                            disabled={!canResend || isResendLocked}
-                                            className={`transition-colors underline ${canResend && !isResendLocked
-                                                ? 'text-indigo-400 hover:text-indigo-300 cursor-pointer'
-                                                : 'text-gray-500 cursor-not-allowed no-underline'
-                                                }`}
-                                        >
-                                            {isResendLocked
-                                                ? `Try again in ${formatTime(timeLeft)}`
-                                                : canResend
-                                                    ? 'Resend'
-                                                    : `Try again in ${timeLeft}s`
-                                            }
-                                        </button>
-                                    </p>
+                                <div className="text-center -mt-1 md:-mt-2 relative z-10">
+                                    <button
+                                        onClick={handleResend}
+                                        disabled={!canResend || isResendLocked}
+                                        className={`w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full border text-sm md:text-base font-semibold transition-all flex items-center justify-center ${canResend && !isResendLocked
+                                            ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20'
+                                            : 'bg-white/[0.01] border-white/5 text-gray-600 cursor-not-allowed'
+                                            }`}
+                                    >
+                                        {isResendLocked
+                                            ? `Try again in ${formatTime(timeLeft)}`
+                                            : canResend
+                                                ? <span>Didn't receive code? <span className="text-indigo-300/60 font-medium ml-1.5">Resend.</span></span>
+                                                : `Wait ${timeLeft}s to resend`
+                                        }
+                                    </button>
+
                                     {isResendLocked && (
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
@@ -334,10 +332,14 @@ export const ResetVerifyPage = () => {
                                 </div>
                             </div>
 
-                            <div className="pt-20 text-center opacity-60">
-                                <div className="text-[10px] text-gray-600 font-mono tracking-widest">
-                                    ALLIFY © 2025
-                                </div>
+                            {/* Security Footer */}
+                            <div className="pt-8 pb-4 text-center">
+                                <p className="text-[10px] md:text-xs text-gray-500/70 font-medium tracking-wide">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 inline-block mr-1.5 -mt-0.5 text-indigo-500/70">
+                                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                                    </svg>
+                                    Your data is secure and encrypted.
+                                </p>
                             </div>
                         </motion.div>
                     </div>

@@ -202,18 +202,64 @@ export const BirthdayPage = () => {
                 </button>
 
                 {isOpen && !disabled && (
-                    <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-neutral-900 border border-white/20 rounded-lg max-h-48 overflow-y-auto shadow-2xl custom-scrollbar">
-                        {options.map((opt) => (
-                            <button
-                                key={opt}
-                                type="button"
-                                onClick={(e) => handleOptionClick(opt, e)}
-                                className="w-full px-4 py-3 text-left text-white hover:bg-neutral-800 transition-colors border-b border-neutral-800/50 last:border-0 text-sm"
+                    <>
+                        {/* ---------------- MOBILE CENTERED MODAL ---------------- */}
+                        <div 
+                            className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-6 md:hidden"
+                            onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
+                        >
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.15, ease: "easeOut" }}
+                                className="bg-neutral-900 border border-white/10 rounded-2xl w-full max-w-[320px] max-h-[60vh] overflow-hidden flex flex-col shadow-2xl" 
+                                onClick={e => e.stopPropagation()}
                             >
-                                {opt}
-                            </button>
-                        ))}
-                    </div>
+                                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02] flex-shrink-0">
+                                    <h3 className="font-bold text-white text-lg">Select {placeholder}</h3>
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
+                                        className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                                    {options.map((opt) => (
+                                        <button
+                                            key={opt}
+                                            type="button"
+                                            onClick={(e) => handleOptionClick(opt, e)}
+                                            className={`w-full px-4 py-3 text-center rounded-xl transition-all mb-1 ${
+                                                value === opt.toString() 
+                                                    ? 'bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30' 
+                                                    : 'text-gray-300 hover:bg-white/5 border border-transparent'
+                                            } text-base`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        </div>
+
+                        {/* ---------------- DESKTOP DROPDOWN (Original untouched) ---------------- */}
+                        <div className="hidden md:block absolute top-full left-0 right-0 mt-2 z-50 bg-neutral-900 border border-white/20 rounded-lg max-h-48 overflow-y-auto shadow-2xl custom-scrollbar">
+                            {options.map((opt) => (
+                                <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={(e) => handleOptionClick(opt, e)}
+                                    className="w-full px-4 py-3 text-left text-white hover:bg-neutral-800 transition-colors border-b border-neutral-800/50 last:border-0 text-sm"
+                                >
+                                    {opt}
+                                </button>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
         );
@@ -221,7 +267,7 @@ export const BirthdayPage = () => {
 
     return (
         <div
-            className="h-screen w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden"
+            className="h-[100dvh] w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden"
             onClick={handleBackdropClick}
         >
             <BackgroundGradient />
@@ -229,12 +275,12 @@ export const BirthdayPage = () => {
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 z-0 pointer-events-none" />
 
             {/* Scrollable Overlay */}
-            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <div className="w-full max-w-md z-10 px-6 relative flex flex-col items-center">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-y-contain">
+                <div className="min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
+                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0 flex flex-col items-center">
                         <button
                             onClick={(e) => { e.stopPropagation(); navigate('/auth/signup'); }}
-                            className="absolute top-0 left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
+                            className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -246,7 +292,7 @@ export const BirthdayPage = () => {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
-                            className="mb-12 mt-12"
+                            className="mb-8 md:mb-12 mt-4 md:mt-12"
                         >
                             {/* Birthday Cake SVG - Robust Icon */}
                             <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
@@ -269,15 +315,15 @@ export const BirthdayPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                            className="w-full space-y-8"
+                            className="w-full space-y-6 md:space-y-8"
                         >
-                            <div className="text-center mb-10">
-                                <h2 className="text-3xl font-bold text-white mb-2">When is your birthday?</h2>
-                                <p className="text-gray-400 text-sm mb-1">You won't be able to change this later.</p>
-                                <p className="text-gray-400 text-xs mt-1">Your birthday won't be shared publicly until you want.</p>
+                            <div className="text-center mb-8 md:mb-10">
+                                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">When is your birthday?</h2>
+                                <p className="text-gray-400 text-[13px] md:text-sm mb-1">You won't be able to change this later.</p>
+                                <p className="text-gray-400 text-[11px] md:text-xs mt-1">Your birthday won't be shared publicly until you want.</p>
                             </div>
 
-                            <div className="flex gap-6 relative z-50">
+                            <div className="flex gap-3 md:gap-6 relative z-50">
                                 <Dropdown
                                     type="year"
                                     options={years}
@@ -335,7 +381,7 @@ export const BirthdayPage = () => {
                             <button
                                 onClick={handleContinue}
                                 disabled={isLoading || !isFormValid}
-                                className="w-full px-8 py-4 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)]"
+                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6 md:mt-0"
                             >
                                 {isLoading ? (
                                     <>
@@ -350,7 +396,7 @@ export const BirthdayPage = () => {
                                 )}
                             </button>
 
-                            <div className="about-me text-center mt-8">
+                            <div className="about-me text-center mt-6 md:mt-8">
                                 <p className="text-[10px] text-gray-600">Allify © 2025</p>
                             </div>
 

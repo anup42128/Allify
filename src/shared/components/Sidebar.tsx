@@ -113,16 +113,25 @@ export const Sidebar = () => {
     return (
         <div className={`fixed left-0 top-0 h-full w-20 hover:w-52 transition-[width] duration-300 ease-in-out group z-50 bg-black ${showBorder ? 'border-r border-zinc-900/50' : ''}`}>
             {/* Logo Section */}
-            <div className="absolute top-1 left-0 w-20 flex justify-center py-3">
+            <div className="absolute top-3.5 left-0 w-20 flex justify-center py-3">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 120 100"
                     fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={3}
                     stroke="currentColor"
-                    className="w-14 h-14 text-white"
+                    strokeWidth={12}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-14 h-auto text-white drop-shadow-md transition-transform hover:scale-105 duration-300"
                 >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 20C5 20 12 2 19 20" />
+                    {/* The A's left leg, apex, and top-right leg */}
+                    <path d="M 11 85 L 45 18 C 52 6, 73 6, 73 22 L 73 55" />
+                    {/* Subtle, translucent fill between the horizontal crossbar and the 130-degree slanted line */}
+                    <path d="M 73 55 L 26 55 L 40 27.5 Z" fill="currentColor" fillOpacity={1} stroke="none" />
+                    {/* The horizontal crossbar to successfully complete the 'A' */}
+                    <path d="M 26 55 L 73 55" />
+                    {/* The U, with the exact 130-degree slanted stylistic line */}
+                    <path d="M 109 35 L 109 65 C 109 88, 73 88, 73 65 L 73 55 L 40 27.5" />
                 </svg>
             </div>
 

@@ -10,10 +10,44 @@ export const SearchPage = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [recentSearches, setRecentSearches] = useState<RecentSearchUser[]>([]);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-    // Load recents on mount
+    // Get current user ID and load their recents
     useEffect(() => {
-        setRecentSearches(getRecentSearches());
+        supabase.auth.getUser().then(({ data }) => {
+            const uid = data.user?.id ?? null;
+            setCurrentUserId(uid);
+            if (uid) {
+                const recents = getRecentSearches(uid);
+                setRecentSearches(recents);
+
+                // Background refresh to keep recent search avatars and names up-to-date
+                if (recents.length > 0) {
+                    supabase
+                        .from('profiles')
+                        .select('id, username, full_name, avatar_url')
+                        .in('id', recents.map(r => r.id))
+                        .then(({ data: freshProfiles }) => {
+                            if (freshProfiles && freshProfiles.length > 0) {
+                                let updated = false;
+                                const freshMap = Object.fromEntries(freshProfiles.map(p => [p.id, p]));
+                                const newRecents = recents.map(r => {
+                                    const fresh = freshMap[r.id];
+                                    if (fresh && (fresh.avatar_url !== r.avatar_url || fresh.full_name !== r.full_name || fresh.username !== r.username)) {
+                                        updated = true;
+                                        return { ...r, ...fresh };
+                                    }
+                                    return r;
+                                });
+                                if (updated) {
+                                    localStorage.setItem(`allify_recent_searches_${uid}`, JSON.stringify(newRecents));
+                                    setRecentSearches(newRecents);
+                                }
+                            }
+                        });
+                }
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -80,8 +114,8 @@ export const SearchPage = () => {
                                 <p className="text-zinc-500 text-sm font-semibold">Recent</p>
                                 {recentSearches.length > 0 && (
                                     <button
-                                        onClick={() => {
-                                            clearRecentSearches();
+                                    onClick={() => {
+                                            clearRecentSearches(currentUserId ?? '');
                                             setRecentSearches([]);
                                         }}
                                         className="text-blue-400 text-xs font-semibold hover:text-blue-300 transition-colors"
@@ -102,8 +136,8 @@ export const SearchPage = () => {
                                             <div
                                                 className="flex items-center gap-3 flex-1 min-w-0"
                                                 onClick={() => {
-                                                    addRecentSearch(user);
-                                                    setRecentSearches(getRecentSearches());
+                                                    addRecentSearch(currentUserId ?? '', user);
+                                                    setRecentSearches(getRecentSearches(currentUserId ?? ''));
                                                     setSelectedUser(user);
                                                 }}
                                             >
@@ -126,10 +160,10 @@ export const SearchPage = () => {
                                                 </div>
                                             </div>
                                             <button
-                                                onClick={(e) => {
+                                            onClick={(e) => {
                                                     e.stopPropagation();
-                                                    removeRecentSearch(user.id);
-                                                    setRecentSearches(getRecentSearches());
+                                                    removeRecentSearch(currentUserId ?? '', user.id);
+                                                    setRecentSearches(getRecentSearches(currentUserId ?? ''));
                                                 }}
                                                 className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full text-zinc-600 hover:text-zinc-300 hover:bg-zinc-700/50 transition-all flex-shrink-0"
                                                 title="Remove"
@@ -156,8 +190,8 @@ export const SearchPage = () => {
                                 <div 
                                     key={user.id} 
                                     onClick={() => {
-                                        addRecentSearch({ id: user.id, username: user.username, full_name: user.full_name, avatar_url: user.avatar_url });
-                                        setRecentSearches(getRecentSearches());
+                                        addRecentSearch(currentUserId ?? '', { id: user.id, username: user.username, full_name: user.full_name, avatar_url: user.avatar_url });
+                                        setRecentSearches(getRecentSearches(currentUserId ?? ''));
                                         setSelectedUser(user);
                                     }}
                                     className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${selectedUser?.id === user.id ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'}`}

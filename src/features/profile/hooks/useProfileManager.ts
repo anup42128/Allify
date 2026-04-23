@@ -4,13 +4,27 @@ import { supabase } from '../../../lib/supabase';
 import { subscribeToPostUpdates } from '../../../lib/postSyncStore';
 
 // Simple module-level cache to prevent reloading when navigating
+let cachedUserId: string | null = null;  // tracks which user owns the cache
 let cachedProfile: any = null;
 let cachedPosts: any[] | null = null;
 let cachedSavedPosts: any[] | null = null;
 let cachedLikedPosts: any[] | null = null;
 
+/** Call this immediately on sign-out so no stale data leaks to the next user */
+export const clearProfileCache = () => {
+    cachedUserId = null;
+    cachedProfile = null;
+    cachedPosts = null;
+    cachedSavedPosts = null;
+    cachedLikedPosts = null;
+};
+
 export const useProfileManager = () => {
     const location = useLocation();
+
+    // Never pre-fill state from cache on first render — we don't yet know
+    // if the cached data belongs to the currently signed-in user.
+    // We validate the cache owner inside fetchProfile() before using it.
     const [profile, setProfile] = useState<{
         id: string;
         username: string;
@@ -23,10 +37,10 @@ export const useProfileManager = () => {
         allies_count: number;
         alling_count: number;
         allied_count: number;
-    } | null>(cachedProfile);
-    const [posts, setPosts] = useState<any[]>(cachedPosts || []);
-    const [isLoading, setIsLoading] = useState(!cachedProfile);
-    const [isLoadingPosts, setIsLoadingPosts] = useState(!cachedPosts);
+    } | null>(null);
+    const [posts, setPosts] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingPosts, setIsLoadingPosts] = useState(true);
     const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Favourites' | 'Likes'>('Photos');
     const [savedPosts, setSavedPosts] = useState<any[]>(cachedSavedPosts || []);
     const [likedPosts, setLikedPosts] = useState<any[]>(cachedLikedPosts || []);
@@ -68,7 +82,14 @@ export const useProfileManager = () => {
         const targetUsername = username || profile?.username || cachedProfile?.username;
         if (!targetUsername) return;
 
-        if (!cachedPosts) setIsLoadingPosts(true);
+        // Only use post cache if it belongs to the current user
+        if (cachedPosts && cachedUserId === cachedProfile?.id) {
+            setPosts(cachedPosts);
+            setIsLoadingPosts(false);
+            return;
+        }
+
+        setIsLoadingPosts(true);
         try {
             const { data: postsData, error: postsError } = await supabase
                 .from('posts')
@@ -252,44 +273,62 @@ export const useProfileManager = () => {
             const session = data.session;
 
             if (session?.user) {
-                const { data } = await supabase
+                const activeUserId = session.user.id;
+
+                // If the cache is valid for THIS user, hydrate immediately
+                if (cachedProfile && cachedUserId === activeUserId) {
+                    setProfile(cachedProfile);
+                    if (cachedPosts) { setPosts(cachedPosts); setIsLoadingPosts(false); }
+                    if (cachedSavedPosts) setSavedPosts(cachedSavedPosts);
+                    if (cachedLikedPosts) setLikedPosts(cachedLikedPosts);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Cache miss or belongs to a different user — clear and refetch
+                clearProfileCache();
+                setProfile(null);
+                setPosts([]);
+                setSavedPosts([]);
+                setLikedPosts([]);
+
+                const { data: profileData } = await supabase
                     .from('profiles')
                     .select('*')
-                    .eq('id', session.user.id)
+                    .eq('id', activeUserId)
                     .single();
 
-                if (data) {
-                    const userId = session.user.id;
-
+                if (profileData) {
                     const [{ count: alliesCount }, { count: allingCount }] = await Promise.all([
-                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', activeUserId),
+                        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', activeUserId),
                     ]);
-                    const { data: allingIds } = await supabase.from('follows').select('following_id').eq('follower_id', userId);
+                    const { data: allingIds } = await supabase.from('follows').select('following_id').eq('follower_id', activeUserId);
                     const { count: alliedCount } = await supabase
                         .from('follows')
                         .select('*', { count: 'exact', head: true })
-                        .eq('following_id', userId)
+                        .eq('following_id', activeUserId)
                         .in('follower_id', allingIds?.map((r: any) => r.following_id) ?? []);
 
-                    const profileData = {
-                        id: userId,
-                        username: data.username || 'user',
-                        full_name: data.full_name || data.fullname || data.username || 'Allify User',
-                        bio: data.bio || null,
-                        avatar_url: data.avatar_url || null,
-                        location: data.location || null,
-                        website: data.website || null,
-                        badges: data.badges || [],
+                    const builtProfile = {
+                        id: activeUserId,
+                        username: profileData.username || 'user',
+                        full_name: profileData.full_name || profileData.fullname || profileData.username || 'Allify User',
+                        bio: profileData.bio || null,
+                        avatar_url: profileData.avatar_url || null,
+                        location: profileData.location || null,
+                        website: profileData.website || null,
+                        badges: profileData.badges || [],
                         allies_count: alliesCount ?? 0,
                         alling_count: allingCount ?? 0,
                         allied_count: alliedCount ?? 0
                     };
-                    cachedProfile = profileData;
-                    setProfile(profileData);
-                    fetchPosts(profileData.username);
-                    fetchSavedPosts(session.user.id);
-                    fetchLikedPosts(profileData.username, session.user.id);
+                    cachedUserId = activeUserId;
+                    cachedProfile = builtProfile;
+                    setProfile(builtProfile);
+                    fetchPosts(builtProfile.username);
+                    fetchSavedPosts(activeUserId);
+                    fetchLikedPosts(builtProfile.username, activeUserId);
                 }
             }
         } catch (err) {
@@ -307,10 +346,8 @@ export const useProfileManager = () => {
             if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
                 fetchProfile();
             } else if (_event === 'SIGNED_OUT') {
-                cachedProfile = null;
-                cachedPosts = null;
-                cachedSavedPosts = null;
-                cachedLikedPosts = null;
+                // Clear cache IMMEDIATELY so no stale data leaks to the next account
+                clearProfileCache();
                 setProfile(null);
                 setPosts([]);
                 setSavedPosts([]);

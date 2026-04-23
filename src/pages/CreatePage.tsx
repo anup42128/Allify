@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import ImageCropper from '../components/ui/ImageCropper';
 import PhotoFilter from '../components/ui/PhotoFilter';
@@ -9,6 +9,7 @@ import { CancelConfirmationModal } from '../components/ui/CancelConfirmationModa
 
 export const CreatePage = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [step, setStep] = useState<'select' | 'crop' | 'filter' | 'position' | 'trim' | 'details'>('select');
@@ -163,7 +164,7 @@ export const CreatePage = () => {
             if (insertError) throw insertError;
 
             // 5. Force hard refresh navigation to profile
-            window.location.href = `/Allify/profile`;
+            navigate('/profile', { state: { refresh: true } });
 
         } catch (error: any) {
             console.error("Error creating post:", error);

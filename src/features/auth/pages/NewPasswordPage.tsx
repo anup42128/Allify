@@ -78,15 +78,15 @@ export const NewPasswordPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu">
-                <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <div className="w-full max-w-md z-10 px-6 relative">
+                <div className="min-h-full w-full flex items-center justify-center py-6 pb-[12vh] md:pb-0">
+                    <div className="w-full max-w-md z-10 px-6 relative mt-4 md:mt-0">
 
                         {/* Allify Logo */}
                         <motion.h1
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="text-5xl font-black tracking-tight mb-12 pb-4 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-12"
+                            className="text-5xl md:text-6xl font-black tracking-tight mb-8 md:mb-12 pb-4 text-center text-white drop-shadow-3xl mt-12 md:leading-none"
                         >
                             Allify
                         </motion.h1>
@@ -103,9 +103,9 @@ export const NewPasswordPage = () => {
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5, delay: 0.4, type: "spring" }}
-                                    className="w-20 h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center"
+                                    className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-10 h-10 text-indigo-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 md:w-10 md:h-10 text-indigo-400">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818l5.73-5.73a1.5 1.5 0 0 0 .43-1.563 6 6 0 1 1 11.72-2.312l-2.029 2.03a1.5 1.5 0 0 0-.43 1.563c.097.564-.026 1.16-.43 1.564l-1.438 1.439a1.5 1.5 0 0 1-2.121 0l-2.121-2.12a1.5 1.5 0 0 1 0-2.122l1.439-1.438a1.5 1.5 0 0 0 .43-1.563 6.002 6.002 0 0 1 3.511-7.029l2.03 2.03c.563.097 1.159-.026 1.563-.43L15.75 5.25Z" />
                                     </svg>
                                 </motion.div>
@@ -136,7 +136,7 @@ export const NewPasswordPage = () => {
                                             placeholder="New Password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full px-5 py-3.5 rounded-xl bg-white/[0.08] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.12] transition-all shadow-inner transform-gpu"
+                                            className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
                                         />
                                         <button
                                             type="button"
@@ -161,7 +161,7 @@ export const NewPasswordPage = () => {
                                             placeholder="Confirm New Password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full px-5 py-3.5 rounded-xl bg-white/[0.08] border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.12] transition-all shadow-inner transform-gpu"
+                                            className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
                                         />
                                         <button
                                             type="button"
@@ -197,7 +197,7 @@ export const NewPasswordPage = () => {
                                 <button
                                     onClick={handleUpdatePassword}
                                     disabled={isLoading || !password || !confirmPassword}
-                                    className="w-full px-8 py-3.5 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4"
                                 >
                                     {isLoading ? (
                                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -209,10 +209,14 @@ export const NewPasswordPage = () => {
                                 </button>
                             </div>
 
-                            <div className="pt-20 text-center opacity-60">
-                                <div className="text-[10px] text-gray-600 font-mono tracking-widest">
-                                    ALLIFY © 2025
-                                </div>
+                            {/* Security Footer */}
+                            <div className="pt-8 pb-4 text-center">
+                                <p className="text-[10px] md:text-xs text-gray-500/70 font-medium tracking-wide">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 inline-block mr-1.5 -mt-0.5 text-indigo-500/70">
+                                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                                    </svg>
+                                    Your data is secure and encrypted.
+                                </p>
                             </div>
                         </motion.div>
                     </div>

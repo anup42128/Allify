@@ -17,21 +17,15 @@ export const SignupPage = () => {
     const [emailError, setEmailError] = useState('');
     const [usernameError, setUsernameError] = useState('');
     const navigate = useNavigate();
-    const { allowRoute, removeRoute, signupFormData, saveSignupFormData } = useNavigation();
+    const { allowRoute, removeRoute, saveSignupFormData } = useNavigation();
 
-    // Load saved form data on component mount only
+    // Do NOT restore previous user's form data on mount for privacy reasons.
+    // Only clear the child routes so returning users start fresh.
     useEffect(() => {
-        setFullName(signupFormData.fullName);
-        setEmail(signupFormData.email);
-        setUsername(signupFormData.username);
-        // Password is intentionally NOT restored
-        setPassword('');
-
-        // Remove subsequent pages from allowed routes when returning to signup
         removeRoute('/auth/signup/birthday');
         removeRoute('/auth/signup/confirm');
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty deps - only run once on mount
+    }, []);
 
     const handleContinue = async () => {
         // Validate all fields are filled
@@ -156,20 +150,20 @@ export const SignupPage = () => {
         !passwordError; // Ensure no password error exists
 
     return (
-        <div className="h-screen w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden">
+        <div className="h-[100dvh] w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden">
             {/* Background Elements - Fixed */}
             <BackgroundGradient />
             <SocialGraph />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 z-0 pointer-events-none" />
 
             {/* Scrollable Overlay */}
-            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <div className="w-full max-w-md z-10 px-6 relative">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-y-contain">
+                <div className="min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
+                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0">
                         {/* Back Button */}
                         <button
                             onClick={() => navigate('/')}
-                            className="absolute top-0 left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group"
+                            className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -181,33 +175,34 @@ export const SignupPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="space-y-6 mt-12"
+                            className="space-y-6 md:space-y-6 mt-4 md:mt-12"
                         >
                             {/* Header Section */}
-                            <div className="text-center space-y-2 mb-8">
+                            <div className="text-center space-y-1 md:space-y-2 mb-8">
                                 <motion.h1
                                     initial={{ scale: 0.9 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5 }}
-                                    className="text-6xl font-black tracking-tighter text-white drop-shadow-3xl mb-4"
+                                    className="text-5xl md:text-6xl font-black tracking-tighter text-white drop-shadow-3xl mb-2 md:mb-4 leading-none"
                                 >
                                     Allify
                                 </motion.h1>
-                                <h2 className="text-2xl font-bold text-gray-200">Create Account</h2>
-                                <p className="text-gray-400 text-sm max-w-xs mx-auto">
+                                <h2 className="text-xl md:text-2xl font-bold text-gray-200 tracking-tight">Create Account</h2>
+                                <p className="text-zinc-500 md:text-gray-400 text-[13px] md:text-sm max-w-xs mx-auto font-medium md:font-normal">
                                     Join the future of digital innovation.
                                 </p>
                             </div>
 
-                            <div className="space-y-5">
+                            <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); handleContinue(); }} className="space-y-4 md:space-y-5">
                                 {/* Full Name */}
                                 <div className="relative group">
                                     <input
                                         type="text"
                                         placeholder="Full Name"
                                         value={fullName}
+                                        autoComplete="off"
                                         onChange={(e) => setFullName(e.target.value)}
-                                        className="w-full px-5 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm shadow-inner"
+                                        className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
                                     />
                                 </div>
 
@@ -218,13 +213,14 @@ export const SignupPage = () => {
                                             type="text"
                                             placeholder="Username"
                                             value={username}
+                                            autoComplete="off"
                                             onChange={handleUsernameChange}
                                             maxLength={20}
-                                            className={`w-full px-5 py-3.5 rounded-xl bg-white/5 border ${usernameError ? 'border-red-500/50' : 'border-white/10'} text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm shadow-inner`}
+                                            className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${usernameError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner`}
                                         />
                                     </div>
                                     {usernameError && (
-                                        <p className="text-xs text-red-400 ml-2">{usernameError}</p>
+                                        <p className="text-[11px] md:text-xs text-red-400 ml-2">{usernameError}</p>
                                     )}
                                 </div>
 
@@ -235,13 +231,14 @@ export const SignupPage = () => {
                                             type="email"
                                             placeholder="Email address"
                                             value={email}
+                                            autoComplete="off"
                                             onChange={handleEmailChange}
                                             onBlur={handleEmailBlur}
-                                            className={`w-full px-5 py-3.5 rounded-xl bg-white/5 border ${emailError ? 'border-red-500/50' : 'border-white/10'} text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm shadow-inner`}
+                                            className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${emailError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner`}
                                         />
                                     </div>
                                     {emailError && (
-                                        <p className="text-xs text-red-400 ml-2">{emailError}</p>
+                                        <p className="text-[11px] md:text-xs text-red-400 ml-2">{emailError}</p>
                                     )}
                                 </div>
 
@@ -252,12 +249,13 @@ export const SignupPage = () => {
                                             type={showPassword ? "text" : "password"}
                                             placeholder="Password"
                                             value={password}
+                                            autoComplete="new-password"
                                             onChange={(e) => {
                                                 setPassword(e.target.value);
                                                 if (passwordError) setPasswordError('');
                                             }}
                                             onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
-                                            className="w-full px-5 py-3.5 pr-12 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm shadow-inner"
+                                            className="w-full px-4 md:px-5 py-3.5 pr-12 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
                                         />
                                         <button
                                             type="button"
@@ -285,7 +283,7 @@ export const SignupPage = () => {
                                     <button
                                         onClick={handleContinue}
                                         disabled={isLoading || !isFormValid}
-                                        className="w-full px-8 py-3.5 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6"
+                                        className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6 md:mt-6"
                                     >
                                         {isLoading ? (
                                             <>
@@ -311,7 +309,7 @@ export const SignupPage = () => {
                                         .
                                     </p>
                                 </div>
-                            </div>
+                            </form>
 
                             {/* Divider and Footer Links */}
                             <div className="space-y-6">
@@ -334,12 +332,8 @@ export const SignupPage = () => {
                                 </div>
                             </div>
 
-                            {/* Privacy Footer */}
-                            <div className="pt-8 text-center opacity-60 hover:opacity-100 transition-opacity duration-300">
-                                <div className="mt-4 text-[10px] text-gray-600 font-mono tracking-widest">
-                                    ALLIFY © 2025
-                                </div>
-                            </div>
+                            {/* END OF SCROLL */}
+                            <div className="pb-8"></div>
                         </motion.div>
                     </div>
                 </div>

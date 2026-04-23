@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { VoiceMessageBubble } from './VoiceMessageBubble';
 import type { Message, Participant } from '../../types/chat';
@@ -49,6 +49,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     handleReaction,
     inputRef
 }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // When component remounts (e.g. optimistic ID → real ID swap), check if
+    // the cursor is already over the element so buttons appear immediately.
+    useEffect(() => {
+        if (containerRef.current?.matches(':hover')) {
+            setIsHovered(true);
+        }
+    }, []);
+
     return (
         <Fragment>
             {initialUnreadId === msg.id && (
@@ -82,7 +93,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     </div>
                 )}
 
-                <div className={`group/msg ${isMe ? 'max-w-[85%] sm:max-w-[70%]' : 'max-w-[78%] sm:max-w-[63%]'} min-w-0 flex flex-col relative ${isMe ? 'items-end' : 'items-start'}`}>
+                <div
+                    ref={containerRef}
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                    className={`group/msg ${isMe ? 'max-w-[85%] sm:max-w-[70%]' : 'max-w-[78%] sm:max-w-[63%]'} min-w-0 flex flex-col relative ${isMe ? 'items-end' : 'items-start'}`}>
 
                     {/* ---- EMBEDDED QUOTE INJECTION ---- */}
                     {msg.reply_to_id && (() => {
@@ -149,7 +164,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                         </span>
 
                         {/* OUTGOING ACTION BUTTONS */}
-                        {isMe && !msg.optimistic && (
+                        {isMe && (
                             <div className="relative flex items-center self-center">
                                 {/* Emoji Picker Popover */}
                                 <AnimatePresence>
@@ -190,14 +205,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                         setConfirmDeleteId(msg.id);
                                         setUnsendMsgId(null);
                                     }}
-                                    className={`p-1.5 rounded-full bg-red-500/10 text-red-500 hover:text-white hover:bg-red-600 transition-all duration-200 ease-out mr-1.5 ${unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-0 scale-90 group-hover/msg:opacity-100 group-hover/msg:scale-100'}`}
+                                    className={`p-1.5 rounded-full bg-red-500/10 text-red-500 hover:text-white hover:bg-red-600 transition-all duration-200 ease-out mr-1.5 ${unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
                                     title="Quick Delete"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setUnsendMsgId(msg.id); }}
-                                    className={`p-1.5 rounded-full bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all duration-200 ease-out ${unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-0 scale-90 group-hover/msg:opacity-100 group-hover/msg:scale-100'}`}
+                                    className={`p-1.5 rounded-full bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all duration-200 ease-out ${unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                                 </button>
@@ -310,11 +325,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                         )}
 
                         {/* INCOMING ACTION BUTTONS */}
-                        {!isMe && !msg.optimistic && (
+                        {!isMe && (
                             <div className="relative flex items-center self-center">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setUnsendMsgId(msg.id); }}
-                                    className={`p-1.5 rounded-full bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all duration-200 ease-out ml-1 ${unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-0 scale-90 group-hover/msg:opacity-100 group-hover/msg:scale-100'}`}
+                                    className={`p-1.5 rounded-full bg-zinc-800/80 text-zinc-400 hover:text-white hover:bg-zinc-700 transition-all duration-200 ease-out ml-1 ${unsendMsgId === msg.id ? 'opacity-0 scale-75 pointer-events-none' : isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                 </button>

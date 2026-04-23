@@ -1,4 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useProfileManager } from '../hooks/useProfileManager';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileTabs } from '../components/ProfileTabs';
@@ -7,6 +8,7 @@ import { AvatarViewerModal } from '../components/AvatarViewerModal';
 import { PostDetailModal } from '../components/PostDetailModal';
 
 export const ProfilePage = () => {
+    const navigate = useNavigate();
     const {
         profile, setProfile,
         isLoading,
@@ -34,7 +36,7 @@ export const ProfilePage = () => {
             <div className="flex flex-col items-center justify-center h-full">
                 <p className="text-zinc-500 mb-4">Please log in to view your profile.</p>
                 <button
-                    onClick={() => window.location.href = '/Allify/auth/login'}
+                    onClick={() => navigate('/auth/login')}
                     className="px-6 py-2 bg-white text-black rounded-full font-bold"
                 >
                     Log In

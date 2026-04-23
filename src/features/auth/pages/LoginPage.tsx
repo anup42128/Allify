@@ -85,63 +85,62 @@ export const LoginPage = () => {
     const isFormValid = identifier.trim() && password.trim();
 
     return (
-        <div className="h-screen w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden">
+        <div className="h-[100dvh] w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden">
             {/* Background Elements - Fixed */}
             <BackgroundGradient />
             <SocialGraph />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 z-0 pointer-events-none" />
 
             {/* Scrollable Overlay */}
-            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div className="min-h-full w-full flex items-center justify-center p-6">
-                    <div className="w-full max-w-md z-10 relative flex flex-col">
-                        {/* Back Button - Integrated in flow */}
-                        <div className="mb-8 pl-1">
-                            <button
-                                onClick={() => navigate('/')}
-                                className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 group text-sm font-medium pt-10"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-                                </svg>
-                                Back
-                            </button>
-                        </div>
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-y-contain">
+                <div className="min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
+                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0">
+                        {/* Back Button */}
+                        <button
+                            onClick={() => navigate('/')}
+                            className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                            </svg>
+                            Back
+                        </button>
 
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="space-y-6"
+                            className="space-y-6 md:space-y-6 mt-4 md:mt-12"
                         >
                             {/* Header Section */}
-                            <div className="text-center space-y-2 mb-8">
+                            <div className="text-center space-y-1 md:space-y-2 mb-8">
                                 <motion.h1
                                     initial={{ scale: 0.9 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5 }}
-                                    className="text-6xl font-black tracking-tighter text-white drop-shadow-3xl mb-4"
+                                    className="text-5xl md:text-6xl font-black tracking-tighter text-white drop-shadow-3xl mb-2 md:mb-4 leading-none"
                                 >
                                     Allify
                                 </motion.h1>
-                                <h2 className="text-2xl font-bold text-gray-200">Welcome back</h2>
-                                <p className="text-gray-400 text-sm max-w-xs mx-auto">
+                                <h2 className="text-xl md:text-2xl font-bold text-gray-200 tracking-tight">Welcome back</h2>
+                                <p className="text-zinc-500 md:text-gray-400 text-[13px] md:text-sm max-w-xs mx-auto font-medium md:font-normal">
                                     Enter your credentials to continue your journey.
                                 </p>
                             </div>
 
-                            <div className="space-y-5">
+                            <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-5">
                                 {/* Email or Username */}
                                 <div className="relative group">
                                     <input
                                         type="text"
                                         placeholder="Email or Username"
                                         value={identifier}
+                                        autoComplete="off"
                                         onChange={(e) => {
                                             setIdentifier(e.target.value);
                                             if (error) setError('');
                                         }}
-                                        className="w-full px-5 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm shadow-inner"
+                                        className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
                                     />
                                 </div>
 
@@ -151,12 +150,13 @@ export const LoginPage = () => {
                                         type={showPassword ? "text" : "password"}
                                         placeholder="Password"
                                         value={password}
+                                        autoComplete="new-password"
                                         onChange={(e) => {
                                             setPassword(e.target.value);
                                             if (error) setError('');
                                         }}
                                         onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                                        className="w-full px-5 py-3.5 pr-12 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm shadow-inner"
+                                        className="w-full px-4 md:px-5 py-3.5 pr-12 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
                                     />
                                     <button
                                         type="button"
@@ -197,9 +197,9 @@ export const LoginPage = () => {
                                 )}
 
                                 <button
-                                    onClick={handleLogin}
+                                    type="submit"
                                     disabled={isLoading || !isFormValid}
-                                    className="w-full px-8 py-3.5 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6 md:mt-6"
                                 >
                                     {isLoading ? (
                                         <>
@@ -207,22 +207,21 @@ export const LoginPage = () => {
                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            <span>Logging in...</span>
+                                            <span>Opening account...</span>
                                         </>
                                     ) : (
-                                        "Log In"
+                                        "Open my account"
                                     )}
                                 </button>
 
-                                <div className="text-center pt-2">
-                                    <button
-                                        onClick={() => navigate('/auth/forgot-password')}
-                                        className="text-xs text-gray-500 hover:text-white transition-colors hover:underline"
-                                    >
-                                        Forgot password?
-                                    </button>
-                                </div>
-                            </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/auth/forgot-password')}
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20 font-semibold text-sm md:text-base transition-all flex items-center justify-center mt-3"
+                                >
+                                    <span>Forgot password? <span className="text-indigo-300/60 font-medium ml-1.5">No tension.</span></span>
+                                </button>
+                                </form>
 
                             {/* Divider and Footer Links */}
                             <div className="space-y-6 pt-2">
@@ -245,14 +244,14 @@ export const LoginPage = () => {
                                 </div>
                             </div>
 
-                            {/* Privacy Footer */}
-                            <div className="pt-8 text-center opacity-60 hover:opacity-100 transition-opacity duration-300">
-                                <p className="text-[10px] text-gray-500 leading-relaxed max-w-xs mx-auto">
+                            {/* Security Footer */}
+                            <div className="pt-8 pb-4 text-center">
+                                <p className="text-[10px] md:text-xs text-gray-500/70 font-medium tracking-wide">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 inline-block mr-1.5 -mt-0.5 text-indigo-500/70">
+                                        <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />
+                                    </svg>
                                     Your data is secure and encrypted.
                                 </p>
-                                <div className="mt-4 text-[10px] text-gray-600 font-mono tracking-widest">
-                                    ALLIFY © 2025
-                                </div>
                             </div>
                         </motion.div>
                     </div>

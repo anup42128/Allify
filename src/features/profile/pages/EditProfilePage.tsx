@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import ImageCropper from '../../../components/ui/ImageCropper';
 import { motion, AnimatePresence } from 'framer-motion';
+import { clearProfileCache } from '../hooks/useProfileManager';
 
 const BADGE_CONFIG: Record<string, { icon: React.ReactNode, label: string, color: string, bg: string, border: string }> = {
     verified: {
@@ -133,6 +134,7 @@ export const EditProfilePage = () => {
 
             await supabase.from('profiles').update({ avatar_url: null }).eq('id', session.user.id);
             setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
+            clearProfileCache();
         } catch (err: any) {
             console.error("Error removing avatar:", err.message);
         } finally {
@@ -203,6 +205,7 @@ export const EditProfilePage = () => {
             }).eq('id', session.user.id);
 
             if (error) throw error;
+            clearProfileCache();
             navigate('/profile');
         } catch (err: any) {
             console.error("Error saving profile:", err.message);
@@ -236,6 +239,7 @@ export const EditProfilePage = () => {
             }
 
             setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+            clearProfileCache();
         } catch (err: any) {
             console.error("Error uploading avatar:", err.message);
         } finally {

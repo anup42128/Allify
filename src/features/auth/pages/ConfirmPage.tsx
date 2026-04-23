@@ -127,19 +127,19 @@ export const ConfirmPage = () => {
     };
 
     return (
-        <div className="h-screen w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden">
+        <div className="h-[100dvh] w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden">
             <BackgroundGradient />
             <SocialGraph />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 z-0 pointer-events-none" />
 
             {/* Scrollable Overlay */}
-            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <div className="w-full max-w-md z-10 px-6 relative">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-y-contain">
+                <div className="min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
+                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0 flex flex-col">
                         {/* Back Button */}
                         <button
                             onClick={() => navigate('/auth/signup')}
-                            className="absolute top-0 left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group z-50"
+                            className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -152,7 +152,7 @@ export const ConfirmPage = () => {
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="text-5xl font-black tracking-tight mb-12 pb-4 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-12"
+                            className="text-4xl md:text-5xl font-black tracking-tight mb-8 md:mb-12 pb-2 md:pb-4 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-4 md:mt-12"
                         >
                             Allify
                         </motion.h1>
@@ -161,18 +161,18 @@ export const ConfirmPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                            className="space-y-6"
+                            className="space-y-5 md:space-y-6"
                         >
                             {/* Success Icon and Message */}
-                            <div className="flex flex-col items-center space-y-4 mb-8">
+                            <div className="flex flex-col items-center space-y-3 md:space-y-4 mb-6 md:mb-8">
                                 {/* Success Checkmark Circle */}
                                 <motion.div
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5, delay: 0.4, type: "spring" }}
-                                    className="w-20 h-20 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center"
+                                    className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-10 h-10 text-green-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 md:w-10 md:h-10 text-green-500">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                                     </svg>
                                 </motion.div>
@@ -182,16 +182,16 @@ export const ConfirmPage = () => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ duration: 0.6, delay: 0.6 }}
-                                    className="text-center space-y-2"
+                                    className="text-center space-y-1.5 md:space-y-2"
                                 >
-                                    <h2 className="text-xl font-semibold text-green-500">Verification Code Sent</h2>
-                                    <p className="text-sm text-gray-400">Please enter the code to continue</p>
+                                    <h2 className="text-lg md:text-xl font-semibold text-green-500">Verification Code Sent</h2>
+                                    <p className="text-[13px] md:text-sm text-gray-400">Please enter the code to continue</p>
                                 </motion.div>
                             </div>
 
                             {/* Additional Info */}
-                            <div className="bg-white/5 border border-white/10 rounded-lg p-4 backdrop-blur-sm">
-                                <p className="text-xs text-gray-400 text-center leading-relaxed">
+                            <div className="bg-white/5 border border-white/10 rounded-xl md:rounded-lg p-3 md:p-4 backdrop-blur-sm">
+                                <p className="text-[11px] md:text-xs text-gray-400 text-center leading-relaxed">
                                     We've sent a 6-digit verification code to <span className="text-white font-bold">{signupFormData.email}</span>. Please check your inbox and enter the code below.
                                 </p>
                             </div>
@@ -204,17 +204,17 @@ export const ConfirmPage = () => {
                                     onChange={handleCodeChange}
                                     placeholder="000000"
                                     maxLength={6}
-                                    className="w-full px-4 py-4 rounded-lg bg-white/5 border border-white/10 text-white text-center text-2xl font-mono tracking-[0.5em] placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm"
+                                    className="w-full px-4 py-3.5 md:py-4 rounded-2xl md:rounded-lg bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white text-center text-xl md:text-2xl font-mono tracking-[0.4em] md:tracking-[0.5em] placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm"
                                 />
-                                <p className="text-xs text-gray-500 text-center">Enter 6-digit code</p>
+                                <p className="text-[11px] md:text-xs text-gray-500 text-center">Enter 6-digit code</p>
                                 {error && (
-                                    <p className="text-xs text-red-500 text-center mt-2">{error}</p>
+                                    <p className="text-[11px] md:text-xs text-red-500 text-center mt-2">{error}</p>
                                 )}
                             </div>
 
                             {/* Resend Code */}
                             <div className="text-center h-6"> {/* Fixed height to prevent layout shift */}
-                                <p className="text-xs text-gray-400">
+                                <p className="text-[11px] md:text-xs text-gray-400">
                                     Didn't receive the code?{' '}
                                     <button
                                         onClick={handleResend}
@@ -233,7 +233,7 @@ export const ConfirmPage = () => {
                             <button
                                 onClick={handleContinue}
                                 disabled={code.length !== 6 || isLoading}
-                                className="w-full px-8 py-4 rounded-full bg-white text-black font-bold text-lg hover:bg-gray-100 transition-all disabled:bg-white/10 disabled:text-white/40 disabled:border disabled:border-white/10 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:bg-white/10 disabled:text-white/40 disabled:border disabled:border-white/10 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-0"
                             >
                                 {isLoading ? (
                                     <>
@@ -250,7 +250,7 @@ export const ConfirmPage = () => {
                         </motion.div>
 
                         {/* Copyright Footer */}
-                        <div className="pt-20 text-center opacity-60">
+                        <div className="pt-12 md:pt-20 text-center opacity-60">
                             <div className="text-[10px] text-gray-600 font-mono tracking-widest">
                                 ALLIFY © 2025
                             </div>

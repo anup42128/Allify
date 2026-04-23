@@ -36,14 +36,14 @@ export const LandingPage = () => {
             <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu">
                 <div className="min-h-full w-full flex flex-col items-center relative py-12">
                     {/* Header Section */}
-                    <header className="w-full p-8 flex justify-center items-center z-20 mb-auto">
+                    <header className="w-full p-6 md:p-8 flex justify-center items-center z-20 mb-auto">
                         <motion.h1
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.8, delay: 0.2 }}
-                            className="text-2xl font-bold tracking-[0.2em] text-white/50 hover:text-white transition-colors cursor-default"
+                            className="text-xl md:text-2xl font-bold tracking-[0.1em] text-white/50 hover:text-white transition-colors cursor-default"
                         >
-                            UNI
+                            U.N.I
                         </motion.h1>
                     </header>
 
@@ -53,10 +53,10 @@ export const LandingPage = () => {
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8, ease: "easeOut" }}
-                            className="mb-6 relative"
+                            className="mb-6 relative group inline-block"
                         >
-                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur opacity-25"></div>
-                            <span className="relative px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-xs font-medium text-indigo-300 backdrop-blur-sm">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur opacity-[0.05] transition-opacity duration-500 group-hover:opacity-[0.10]"></div>
+                            <span className="relative block px-5 py-2 rounded-full border border-white/5 bg-white/[0.02] text-[10px] font-bold tracking-widest uppercase text-indigo-400 backdrop-blur-md">
                                 The Future of Social
                             </span>
                         </motion.div>
@@ -65,7 +65,7 @@ export const LandingPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8, delay: 0.2 }}
-                            className="text-7xl md:text-9xl font-black tracking-tight mb-4 py-8 px-4 leading-relaxed bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40"
+                            className="text-6xl sm:text-7xl md:text-9xl font-black tracking-tighter md:tracking-tight mb-2 md:mb-4 py-4 md:py-8 px-4 leading-none bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40"
                         >
                             Allify
                         </motion.h2>
@@ -74,7 +74,7 @@ export const LandingPage = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 1, delay: 0.4 }}
-                            className="text-lg md:text-xl text-gray-400 max-w-lg mb-10 font-light"
+                            className="text-base sm:text-lg md:text-xl text-gray-400 max-w-[280px] sm:max-w-sm md:max-w-lg mb-10 font-normal md:font-light leading-relaxed"
                         >
                             Connect without limits. Share without boundaries. <br className="hidden md:block" /> Experience the new vibe of social networking.
                         </motion.p>
@@ -83,23 +83,23 @@ export const LandingPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.8, delay: 0.6 }}
-                            className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto"
+                            className="flex flex-col sm:flex-row gap-4 w-[280px] sm:w-auto mt-2 md:mt-0"
                         >
                             <button
                                 onClick={handleCreateAccount}
                                 onMouseEnter={handlePrecheck}
-                                className="group relative px-8 py-4 rounded-full bg-white text-black font-bold text-lg hover:pr-10 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_-5px_rgba(255,255,255,0.5)] overflow-hidden cursor-pointer"
+                                className="group relative px-6 md:px-8 py-3.5 md:py-4 rounded-full bg-white text-black font-bold text-base md:text-lg hover:pr-10 transition-all duration-300 shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_-5px_rgba(255,255,255,0.5)] overflow-hidden cursor-pointer w-full sm:w-auto flex items-center justify-center"
                             >
-                                <span className="relative z-10">Create Account</span>
+                                <span className="relative z-10 w-full text-center transition-transform duration-300 group-hover:-translate-x-2">Create Account</span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-gray-100 to-white z-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <span className="absolute right-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-[-4px] transition-all duration-300 z-10">→</span>
+                                <span className="absolute right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">→</span>
                             </button>
 
                             <button
                                 onClick={() => navigate('/auth/login')}
-                                className="px-8 py-4 rounded-full border border-white/20 text-white font-semibold text-lg hover:bg-white/5 hover:border-white/40 transition-all duration-300 backdrop-blur-sm cursor-pointer"
+                                className="px-6 md:px-8 py-3.5 md:py-4 rounded-full border border-white/20 text-white font-semibold text-base md:text-lg hover:bg-white/5 hover:border-white/40 transition-all duration-300 backdrop-blur-sm cursor-pointer w-full sm:w-auto"
                             >
-                                Log in
+                                Open Account
                             </button>
                         </motion.div>
                     </main>
