@@ -362,6 +362,8 @@ export const useProfileManager = () => {
     useEffect(() => {
         if (location.state?.refresh) {
             clearProfileCache();
+            setIsLoading(true);
+            setIsLoadingPosts(true);
             fetchProfile();
             window.history.replaceState({}, document.title);
         }
