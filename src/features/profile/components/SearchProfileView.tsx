@@ -51,7 +51,7 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
     }
 
     return (
-        <div ref={scrollRef} className="flex-1 h-full overflow-y-auto bg-black relative">
+        <div ref={scrollRef} className="flex-1 h-full overflow-y-auto custom-scrollbar bg-black relative">
             <div className="min-h-full flex flex-col pt-16 px-10 max-w-5xl mx-auto pb-20">
 
                 {/* Scroll-shrinking close button */}

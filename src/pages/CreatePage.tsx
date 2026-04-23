@@ -175,7 +175,7 @@ export const CreatePage = () => {
     };
 
     return (
-        <div className="h-full w-full bg-black text-white flex flex-col pt-10 px-4 md:px-0 overflow-y-auto">
+        <div className="h-full w-full bg-black text-white flex flex-col pt-10 px-4 md:px-0 overflow-y-auto custom-scrollbar">
             <AnimatePresence mode="wait">
                 {step === 'select' && (
                     <motion.div

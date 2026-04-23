@@ -256,7 +256,7 @@ export const EditProfilePage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans p-4 md:p-12 overflow-y-auto">
+        <div className="min-h-screen bg-black text-white font-sans p-4 md:p-12 overflow-y-auto custom-scrollbar">
             <div className="max-w-3xl mx-auto">
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}

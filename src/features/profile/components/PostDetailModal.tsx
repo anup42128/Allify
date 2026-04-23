@@ -120,7 +120,7 @@ export const PostDetailModal = ({
                     </div>
 
                     {/* Content Area (Scrollable) */}
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
                         {activeTab === 'details' ? (
                             <div className="p-6">
                                 {post.caption ? (

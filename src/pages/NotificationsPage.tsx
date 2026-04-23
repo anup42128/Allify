@@ -37,7 +37,7 @@ export const NotificationsPage = () => {
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto pb-24 md:pb-4 relative">
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-4 relative">
                     {/* Subtle indigo shimmer bar at top — never hides the list */}
                     {isRefreshing && (
                         <div className="sticky top-0 z-10 h-0.5 w-full overflow-hidden bg-transparent">

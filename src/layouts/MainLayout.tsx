@@ -23,7 +23,7 @@ export const MainLayout = () => {
             <Sidebar />
 
             {/* Main Content Area - renders child routes */}
-            <main className="flex-1 ml-20 transition-all duration-300 h-full overflow-y-auto bg-black">
+            <main className="flex-1 ml-20 transition-all duration-300 h-full overflow-y-auto custom-scrollbar bg-black">
                 <Outlet />
             </main>
         </div>

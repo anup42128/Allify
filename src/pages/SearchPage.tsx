@@ -107,7 +107,7 @@ export const SearchPage = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 pt-4 border-t border-zinc-800/50 mt-2">
+                <div className="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4 border-t border-zinc-800/50 mt-2">
                     {searchQuery.trim() === '' ? (
                         <div className="px-2">
                             <div className="flex items-center justify-between mb-3">
