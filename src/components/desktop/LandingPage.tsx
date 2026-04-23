@@ -25,16 +25,18 @@ export const LandingPage = () => {
     };
 
     return (
-        <div className="h-screen w-screen overflow-hidden bg-black text-white flex flex-col items-center justify-center relative selection:bg-indigo-500/30">
+        <div className="min-h-[100svh] md:h-screen w-full md:overflow-hidden overflow-x-hidden bg-black text-white flex flex-col items-center justify-center relative selection:bg-indigo-500/30">
 
             {/* Background Elements */}
-            <BackgroundGradient />
-            <SocialGraph />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 z-0 pointer-events-none" />
+            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
+                <BackgroundGradient />
+                <SocialGraph />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
+            </div>
 
             {/* Scrollable Overlay */}
-            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu">
-                <div className="min-h-full w-full flex flex-col items-center relative py-12">
+            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu z-10 w-full min-h-[100svh]">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center relative py-12">
                     {/* Header Section */}
                     <header className="w-full p-6 md:p-8 flex justify-center items-center z-20 mb-auto">
                         <motion.h1

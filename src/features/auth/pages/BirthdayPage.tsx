@@ -267,16 +267,18 @@ export const BirthdayPage = () => {
 
     return (
         <div
-            className="h-[100dvh] w-screen bg-black text-white relative selection:bg-indigo-500/30 overflow-hidden"
+            className="min-h-[100svh] md:h-[100dvh] w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden"
             onClick={handleBackdropClick}
         >
-            <BackgroundGradient />
-            <SocialGraph />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 z-0 pointer-events-none" />
+            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
+                <BackgroundGradient />
+                <SocialGraph />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
+            </div>
 
             {/* Scrollable Overlay */}
-            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-y-contain">
-                <div className="min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
+            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
                     <div className="w-full max-w-md z-10 relative mt-16 md:mt-0 flex flex-col items-center">
                         <button
                             onClick={(e) => { e.stopPropagation(); navigate('/auth/signup'); }}
