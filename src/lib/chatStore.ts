@@ -111,7 +111,13 @@ export const fetchGlobalConversations = async (userId: string) => {
             }
         }
 
-        const finalConvs = [...seen.values()];
+        const initiatedStr = localStorage.getItem(`initiated_chats_${userId}`) || '[]';
+        let initiatedIds: string[] = [];
+        try { initiatedIds = JSON.parse(initiatedStr); } catch (e) {}
+
+        const finalConvs = [...seen.values()].filter(c => 
+            (c.last_message && c.last_message.trim() !== '') || initiatedIds.includes(c.id)
+        );
         setCachedConversations(finalConvs);
     } catch (e) {
         console.error('Error in global fetch:', e);

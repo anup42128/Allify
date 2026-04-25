@@ -126,13 +126,22 @@ export function useChatManager() {
                 });
                 if (error) throw error;
 
-                await fetchConversations(currentUser.id);
-
                 const { data: fullProfile } = await supabase
                     .from('profiles')
                     .select('id, username, full_name, avatar_url, last_seen')
                     .eq('id', startWith.id)
                     .single();
+
+                // Save to localStorage so it stays in the initiator's sidebar as a draft
+                const initiatedStr = localStorage.getItem(`initiated_chats_${currentUser.id}`) || '[]';
+                let initiatedIds: string[] = [];
+                try { initiatedIds = JSON.parse(initiatedStr); } catch (e) {}
+                if (!initiatedIds.includes(convId)) {
+                    initiatedIds.push(convId);
+                    localStorage.setItem(`initiated_chats_${currentUser.id}`, JSON.stringify(initiatedIds));
+                }
+
+                await fetchConversations(currentUser.id);
 
                 setActiveConvId(convId);
                 setActiveConvUser({
@@ -266,6 +275,16 @@ export function useChatManager() {
             console.error('Error opening chat:', error);
             throw error;
         }
+
+        // Save to localStorage so it stays in the initiator's sidebar as a draft
+        const initiatedStr = localStorage.getItem(`initiated_chats_${currentUser.id}`) || '[]';
+        let initiatedIds: string[] = [];
+        try { initiatedIds = JSON.parse(initiatedStr); } catch (e) {}
+        if (!initiatedIds.includes(convId)) {
+            initiatedIds.push(convId);
+            localStorage.setItem(`initiated_chats_${currentUser.id}`, JSON.stringify(initiatedIds));
+        }
+
         await fetchConversations(currentUser.id);
         setActiveConvId(convId);
         setActiveConvUser(user);
