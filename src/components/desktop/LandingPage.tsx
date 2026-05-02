@@ -80,7 +80,7 @@ export const LandingPage = () => {
     };
 
     return (
-        <div className="min-h-[100svh] md:h-screen w-full md:overflow-hidden overflow-x-hidden bg-black text-white flex flex-col items-center justify-center relative selection:bg-indigo-500/30">
+        <div className="min-h-[100svh] md:h-screen w-full md:overflow-hidden overflow-x-hidden bg-black text-white flex flex-col items-center justify-center relative selection:bg-indigo-500/30 pt-[env(safe-area-inset-top)]">
 
             {/* Background Elements */}
             <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
