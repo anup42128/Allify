@@ -127,7 +127,7 @@ export const ConfirmPage = () => {
     };
 
     return (
-        <div className="min-h-[100svh] md:h-[100dvh] w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden">
+        <div className="min-h-[100svh] md:h-[100dvh] w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
             <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
                 <BackgroundGradient />
                 <SocialGraph />
