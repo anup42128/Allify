@@ -1,15 +1,51 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useNavigation } from '../../features/auth/contexts/SignupContext';
 import { SocialGraph } from '../ui/SocialGraph';
 import { BackgroundGradient } from '../ui/BackgroundGradient';
 import { api } from '../../lib/api';
-
+import { useState, useEffect } from 'react';
 
 export const LandingPage = () => {
     const navigate = useNavigate();
     const { allowRoute } = useNavigation();
+    
+    // PWA State
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isIOS, setIsIOS] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
+    const [showInstallBanner, setShowInstallBanner] = useState(true);
 
+    useEffect(() => {
+        // Check if already installed
+        const isStandaloneMatch = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+        setIsStandalone(isStandaloneMatch);
+
+        if (isStandaloneMatch) return; // Don't show if already installed
+
+        // Detect iOS
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        setIsIOS(/iphone|ipad|ipod/.test(userAgent));
+
+        // Listen for the standard install prompt
+        const handleBeforeInstallPrompt = (e: any) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+            setShowInstallBanner(false);
+        }
+    };
 
     const handleCreateAccount = () => {
         // Invisible Security Check triggered in background (don't await)
@@ -107,7 +143,7 @@ export const LandingPage = () => {
                     </main>
 
                     {/* Footer Section */}
-                    <footer className="w-full text-center text-white/30 text-sm z-10 p-8 mt-auto">
+                    <footer className="w-full text-center text-white/30 text-sm z-10 p-8 mt-auto pb-32 md:pb-8">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -119,8 +155,46 @@ export const LandingPage = () => {
                 </div>
             </div>
 
-
-
-        </div >
+            {/* PWA Install Banner */}
+            <AnimatePresence>
+                {(!isStandalone && showInstallBanner && (deferredPrompt || isIOS)) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 50 }}
+                        transition={{ delay: 1.5, type: 'spring', damping: 20 }}
+                        className="fixed bottom-6 left-4 right-4 md:left-auto md:right-8 md:w-80 bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/50 rounded-3xl p-4 shadow-2xl z-50 flex flex-col gap-3"
+                    >
+                        <button 
+                            onClick={() => setShowInstallBanner(false)}
+                            className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-zinc-500 hover:text-white bg-zinc-800 rounded-full transition-colors"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        
+                        <div className="flex items-center gap-4">
+                            <img src="/pwa-192x192.png" alt="Allify App" className="w-12 h-12 rounded-xl shadow-lg border border-zinc-700/50" />
+                            <div>
+                                <h4 className="text-white font-bold text-sm">Install Allify</h4>
+                                <p className="text-zinc-400 text-xs mt-0.5">For the best native experience</p>
+                            </div>
+                        </div>
+                        
+                        {deferredPrompt ? (
+                            <button
+                                onClick={handleInstallClick}
+                                className="w-full py-2.5 mt-1 bg-white text-black rounded-xl font-bold text-sm hover:bg-zinc-200 transition-all shadow-[0_0_15px_-3px_rgba(255,255,255,0.4)]"
+                            >
+                                Install App
+                            </button>
+                        ) : isIOS ? (
+                            <div className="text-zinc-300 text-xs bg-black/40 p-3 rounded-xl text-center border border-zinc-800 mt-1">
+                                Tap <span className="inline-block mx-1 font-bold text-blue-400">Share</span> below, then<br/><span className="font-bold text-white mt-1 block">Add to Home Screen</span>
+                            </div>
+                        ) : null}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 };
