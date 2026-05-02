@@ -31,6 +31,18 @@ export function useChatManager() {
         }
     }, [currentUser?.id]);
 
+    // Listen for hardware back button to close chat instead of leaving the page
+    useEffect(() => {
+        const handlePopState = () => {
+            if (activeConvIdRef.current) {
+                setActiveConvId(null);
+                setActiveConvUser(null);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
     const [activeConvUser, setActiveConvUser] = useState<Participant | null>(null);
     const [unsendMsgId, setUnsendMsgId] = useState<string | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -45,7 +57,8 @@ export function useChatManager() {
 
     const [initialUnreadId, setInitialUnreadId] = useState<string | null>(null);
     const [isTyping, setIsTyping] = useState(false);
-    const [isOpeningChat, setIsOpeningChat] = useState(false);
+    // Initialize as `true` immediately if we arrived via "Message" button — shows spinner from frame 1, no blank-state flash!
+    const [isOpeningChat, setIsOpeningChat] = useState<boolean>(() => !!(location.state?.startChatWith));
 
     const fetchConversations = useCallback(async (userId: string) => {
         await fetchGlobalConversations(userId);
@@ -117,6 +130,9 @@ export function useChatManager() {
         if (!startWith || !currentUser?.id || startChatHandledRef.current) return;
         startChatHandledRef.current = true;
 
+        // Immediately clear the navigation state so navigating away & back doesn't re-trigger this flow
+        navigate(location.pathname, { replace: true, state: {} });
+
         const openOrCreate = async () => {
             try {
                 setIsOpeningChat(true);
@@ -132,17 +148,11 @@ export function useChatManager() {
                     .eq('id', startWith.id)
                     .single();
 
-                // Save to localStorage so it stays in the initiator's sidebar as a draft
-                const initiatedStr = localStorage.getItem(`initiated_chats_${currentUser.id}`) || '[]';
-                let initiatedIds: string[] = [];
-                try { initiatedIds = JSON.parse(initiatedStr); } catch (e) {}
-                if (!initiatedIds.includes(convId)) {
-                    initiatedIds.push(convId);
-                    localStorage.setItem(`initiated_chats_${currentUser.id}`, JSON.stringify(initiatedIds));
-                }
-
                 await fetchConversations(currentUser.id);
 
+                if (!activeConvIdRef.current) {
+                    window.history.pushState({ chatOpen: true }, '');
+                }
                 setActiveConvId(convId);
                 setActiveConvUser({
                     id: startWith.id,
@@ -160,7 +170,7 @@ export function useChatManager() {
         };
 
         openOrCreate();
-    }, [location.state, currentUser, fetchConversations]);
+    }, [location.state, currentUser, fetchConversations, navigate]);
 
     const fetchMessages = useCallback(async (convId: string) => {
         const hasCached = cachedMessages.has(convId);
@@ -260,9 +270,23 @@ export function useChatManager() {
 
 
     const openConversation = (conv: Conversation) => {
+        if (!activeConvIdRef.current) {
+            window.history.pushState({ chatOpen: true }, '');
+        }
         setActiveConvId(conv.id);
         setActiveConvUser(conv.other_user);
-        setTimeout(() => inputRef.current?.focus(), 50);
+        const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+        if (!isMobile) {
+            setTimeout(() => inputRef.current?.focus(), 50);
+        }
+    };
+
+    const closeConversation = () => {
+        setActiveConvId(null);
+        setActiveConvUser(null);
+        if (window.history.state?.chatOpen) {
+            window.history.back();
+        }
     };
 
     const handleStartNewChat = async (user: Participant) => {
@@ -276,16 +300,10 @@ export function useChatManager() {
             throw error;
         }
 
-        // Save to localStorage so it stays in the initiator's sidebar as a draft
-        const initiatedStr = localStorage.getItem(`initiated_chats_${currentUser.id}`) || '[]';
-        let initiatedIds: string[] = [];
-        try { initiatedIds = JSON.parse(initiatedStr); } catch (e) {}
-        if (!initiatedIds.includes(convId)) {
-            initiatedIds.push(convId);
-            localStorage.setItem(`initiated_chats_${currentUser.id}`, JSON.stringify(initiatedIds));
-        }
-
         await fetchConversations(currentUser.id);
+        if (!activeConvIdRef.current) {
+            window.history.pushState({ chatOpen: true }, '');
+        }
         setActiveConvId(convId);
         setActiveConvUser(user);
     };
@@ -335,6 +353,7 @@ export function useChatManager() {
 
         // Actions
         openConversation,
+        closeConversation,
         handleStartNewChat,
         handleSendMessageText,
         handleVoiceRecordStopFromInput,

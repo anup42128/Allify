@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { subscribeToPostUpdates } from '../../../lib/postSyncStore';
@@ -44,39 +44,146 @@ export const useProfileManager = () => {
     const [activeTab, setActiveTab] = useState<'Photos' | 'Videos' | 'Favourites' | 'Likes'>('Photos');
     const [savedPosts, setSavedPosts] = useState<any[]>(cachedSavedPosts || []);
     const [likedPosts, setLikedPosts] = useState<any[]>(cachedLikedPosts || []);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(cachedUserId);
     
     // UI states handled via manager to simplify props
     const [showImageViewer, setShowImageViewer] = useState(false);
     const [selectedPost, setSelectedPost] = useState<any | null>(null);
 
+    // Refs to always have latest state inside broadcast listener (avoids stale closure)
+    const postsRef = useRef<any[]>([]);
+    useEffect(() => { postsRef.current = posts; }, [posts]);
+    const savedPostsRef = useRef<any[]>([]);
+    useEffect(() => { savedPostsRef.current = savedPosts; }, [savedPosts]);
+    const selectedPostRef = useRef<any>(null);
+    useEffect(() => { selectedPostRef.current = selectedPost; }, [selectedPost]);
+
     // REAL-TIME CACHE SYNC
     useEffect(() => {
         const unsubscribe = subscribeToPostUpdates((payload) => {
-            setPosts(prev => prev.map(p => {
-                if (p.id !== payload.postId) return p;
-                const newP = { ...p };
+            // Always update posts list counts/flags
+            setPosts(prev => {
+                const next = prev.map(p => {
+                    if (p.id !== payload.postId) return p;
+                    const newP = { ...p };
+                    if (payload.action === 'like') {
+                        if (payload.userId && payload.userId === cachedUserId) newP.is_liked_by_me = true;
+                        if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
+                    } else if (payload.action === 'unlike') {
+                        if (payload.userId && payload.userId === cachedUserId) newP.is_liked_by_me = false;
+                        if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
+                    } else if (payload.action === 'save') {
+                        if (payload.userId && payload.userId === cachedUserId) newP.is_saved_by_me = true;
+                    } else if (payload.action === 'unsave') {
+                        if (payload.userId && payload.userId === cachedUserId) newP.is_saved_by_me = false;
+                    }
+                    return newP;
+                });
+                cachedPosts = next;
+                return next;
+            });
+
+            // Update likedPosts for current user's like/unlike
+            if (payload.userId && payload.userId === cachedUserId) {
                 if (payload.action === 'like') {
-                    newP.is_liked_by_me = true;
-                    if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
+                    const postToAdd =
+                        postsRef.current.find(p => p.id === payload.postId) ||
+                        savedPostsRef.current.find(p => p.id === payload.postId) ||
+                        (selectedPostRef.current?.id === payload.postId ? selectedPostRef.current : null);
+                    if (postToAdd) {
+                        setLikedPosts(prev => {
+                            if (prev.some(p => p.id === payload.postId)) {
+                                const next = prev.map(p => p.id === payload.postId
+                                    ? { ...p, is_liked_by_me: true, likes_count: payload.data?.likes_count ?? p.likes_count }
+                                    : p);
+                                cachedLikedPosts = next;
+                                return next;
+                            }
+                            const next = [{ ...postToAdd, is_liked_by_me: true, likes_count: payload.data?.likes_count ?? postToAdd.likes_count }, ...prev];
+                            cachedLikedPosts = next;
+                            return next;
+                        });
+                    } else {
+                        // Post is not in local state (it belongs to another user) — fetch from DB
+                        supabase.from('posts').select('*').eq('id', payload.postId).single().then(({ data: fetchedPost }) => {
+                            if (!fetchedPost) return;
+                            const enriched = { ...fetchedPost, is_liked_by_me: true, likes_count: payload.data?.likes_count ?? fetchedPost.likes_count };
+                            setLikedPosts(prev => {
+                                if (prev.some(p => p.id === payload.postId)) return prev;
+                                const next = [enriched, ...prev];
+                                cachedLikedPosts = next;
+                                return next;
+                            });
+                        });
+                    }
                 } else if (payload.action === 'unlike') {
-                    newP.is_liked_by_me = false;
-                    if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
-                } else if (payload.action === 'save') {
-                    newP.is_saved_by_me = true;
-                } else if (payload.action === 'unsave') {
-                    newP.is_saved_by_me = false;
+                    setLikedPosts(prev => {
+                        const next = prev.filter(p => p.id !== payload.postId);
+                        cachedLikedPosts = next;
+                        return next;
+                    });
                 }
-                return newP;
-            }));
-            
+            }
+
+            // Also sync likes_count inside likedPosts for anyone's like
+            if ((payload.action === 'like' || payload.action === 'unlike') && payload.data?.likes_count !== undefined) {
+                setLikedPosts(prev => {
+                    const next = prev.map(p => p.id === payload.postId
+                        ? { ...p, likes_count: payload.data.likes_count }
+                        : p);
+                    cachedLikedPosts = next;
+                    return next;
+                });
+            }
+
             if (payload.action === 'delete') {
                 setPosts(prev => prev.filter(p => p.id !== payload.postId));
-                setSavedPosts(prev => prev.filter(p => p.post?.id !== payload.postId));
-                setLikedPosts(prev => prev.filter(p => p.post?.id !== payload.postId));
+                setSavedPosts(prev => prev.filter(p => p.id !== payload.postId));
+                setLikedPosts(prev => { 
+                    const next = prev.filter(p => p.id !== payload.postId);
+                    cachedLikedPosts = next;
+                    return next;
+                });
             }
         });
         return () => { unsubscribe(); };
     }, []);
+
+    // Real-time allies count sync — re-fetches actual counts to handle concurrent follows
+    useEffect(() => {
+        if (!currentUserId) return;
+        const channel = supabase
+            .channel(`follow-updates-${currentUserId}`)
+            .on('broadcast', { event: 'follow_update' }, async (msg) => {
+                const p = msg.payload;
+                if (p?.target_user_id !== currentUserId) return;
+                // Re-fetch real counts from DB to handle concurrent follows correctly
+                const [{ count: alliesCount }, { count: allingCount }] = await Promise.all([
+                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', currentUserId),
+                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', currentUserId),
+                ]);
+                const { data: allingIds } = await supabase.from('follows').select('following_id').eq('follower_id', currentUserId);
+                const { count: alliedCount } = await supabase
+                    .from('follows')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('following_id', currentUserId)
+                    .in('follower_id', allingIds?.map((r: any) => r.following_id) ?? []);
+                setProfile(prev => {
+                    if (!prev) return prev;
+                    const updated = {
+                        ...prev,
+                        allies_count: alliesCount ?? prev.allies_count,
+                        alling_count: allingCount ?? prev.alling_count,
+                        allied_count: alliedCount ?? prev.allied_count,
+                    };
+                    cachedProfile = updated;
+                    return updated;
+                });
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [currentUserId]);
+
 
     const fetchPosts = async (username?: string) => {
         const targetUsername = username || profile?.username || cachedProfile?.username;
@@ -200,7 +307,7 @@ export const useProfileManager = () => {
         }
     };
 
-    const fetchLikedPosts = async (username: string, userId: string) => {
+    const fetchLikedPosts = async (username: string, userId: string, backgroundRefresh = false) => {
         try {
             const { data: userLikes, error: likesError } = await supabase
                 .from('likes')
@@ -210,7 +317,11 @@ export const useProfileManager = () => {
 
             if (likesError) throw likesError;
             if (!userLikes || userLikes.length === 0) {
-                setLikedPosts([]);
+                // In background mode, never wipe the current list
+                if (!backgroundRefresh) {
+                    cachedLikedPosts = [];
+                    setLikedPosts([]);
+                }
                 return;
             }
 
@@ -261,7 +372,20 @@ export const useProfileManager = () => {
                 }));
             }
 
-            setLikedPosts(fetchedPosts);
+            if (backgroundRefresh) {
+                // Merge: add any newly liked posts that aren't already showing
+                setLikedPosts(prev => {
+                    const existingIds = new Set(prev.map(p => p.id));
+                    const newPosts = fetchedPosts.filter(p => !existingIds.has(p.id));
+                    if (newPosts.length === 0) return prev; // nothing to add, no re-render
+                    const next = [...newPosts, ...prev];
+                    cachedLikedPosts = next;
+                    return next;
+                });
+            } else {
+                cachedLikedPosts = fetchedPosts;
+                setLikedPosts(fetchedPosts);
+            }
         } catch (err) {
             console.error('Error fetching liked posts:', err);
         }
@@ -282,6 +406,10 @@ export const useProfileManager = () => {
                     if (cachedSavedPosts) setSavedPosts(cachedSavedPosts);
                     if (cachedLikedPosts) setLikedPosts(cachedLikedPosts);
                     setIsLoading(false);
+                    // Always silently re-fetch liked & saved posts to catch
+                    // any likes/saves done from other pages or devices
+                    fetchLikedPosts(cachedProfile.username, activeUserId, true);
+                    fetchSavedPosts(activeUserId);
                     return;
                 }
 
@@ -325,6 +453,7 @@ export const useProfileManager = () => {
                     };
                     cachedUserId = activeUserId;
                     cachedProfile = builtProfile;
+                    setCurrentUserId(activeUserId);
                     setProfile(builtProfile);
                     fetchPosts(builtProfile.username);
                     fetchSavedPosts(activeUserId);
@@ -381,14 +510,23 @@ export const useProfileManager = () => {
             return next;
         });
         if (isLiked) {
-            const postToAdd = posts.find(p => p.id === postId) || savedPosts.find(p => p.id === postId) || selectedPost;
-            if (postToAdd && !likedPosts.some(p => p.id === postId)) {
-                setLikedPosts(prev => {
-                    const next = [{ ...postToAdd, is_liked_by_me: true, likes_count: likeCount }, ...prev];
+            const postToAdd =
+                postsRef.current.find(p => p.id === postId) ||
+                savedPostsRef.current.find(p => p.id === postId) ||
+                (selectedPostRef.current?.id === postId ? selectedPostRef.current : null);
+            setLikedPosts(prev => {
+                const exists = prev.some(p => p.id === postId);
+                if (exists) {
+                    // Already there, just update the count
+                    const next = prev.map(p => p.id === postId ? { ...p, is_liked_by_me: true, likes_count: likeCount } : p);
                     cachedLikedPosts = next;
                     return next;
-                });
-            }
+                }
+                if (!postToAdd) return prev;
+                const next = [{ ...postToAdd, is_liked_by_me: true, likes_count: likeCount }, ...prev];
+                cachedLikedPosts = next;
+                return next;
+            });
         } else {
             setLikedPosts(prev => {
                 const next = prev.filter(p => p.id !== postId);

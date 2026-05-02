@@ -3,6 +3,18 @@ import { supabase } from '../lib/supabase';
 import { cachedMessages } from '../lib/chatStore';
 import type { Message, Conversation } from '../types/chat';
 
+const generateId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // Fallback for insecure contexts (HTTP LAN testing) where crypto.randomUUID is disabled
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
 export interface UseChatActionsParams {
     currentUser: any;
     messages: Message[];
@@ -167,7 +179,7 @@ export function useChatActions({
                 payload: { user_id: currentUser?.id, typing: false }
             });
 
-            const realId = preGeneratedId || crypto.randomUUID();
+            const realId = preGeneratedId || generateId();
             const localAudioUrl = URL.createObjectURL(audioBlob);
             const pendingReplyId = activeReplyMsg ? activeReplyMsg.id : null;
 
@@ -266,7 +278,7 @@ export function useChatActions({
     const handleVoiceRecordStopFromInput = useCallback(async (blob: Blob, durationSeconds: number) => {
         if (!activeConvId || !currentUser) return;
 
-        const tempId = crypto.randomUUID();
+        const tempId = generateId();
         const pendingReplyId = activeReplyMsg ? activeReplyMsg.id : null;
         const currentDuration = Math.max(1, durationSeconds);
 
@@ -306,7 +318,7 @@ export function useChatActions({
         if (!text || !activeConvId || !currentUser?.id || isSending) return;
 
         setIsSending(true);
-        const realId = crypto.randomUUID();
+        const realId = generateId();
 
         const optimisticMsg: Message = {
             id: realId,

@@ -5,6 +5,7 @@ export type PostUpdateAction = 'like' | 'unlike' | 'save' | 'unsave' | 'comment_
 export interface PostUpdatePayload {
     postId: string;
     action: PostUpdateAction;
+    userId?: string;
     data?: any; // e.g. likes_count
 }
 
@@ -12,18 +13,19 @@ type Listener = (payload: PostUpdatePayload) => void;
 const listeners = new Set<Listener>();
 
 let isSubscribed = false;
+let postChannel: any = null;
 
 // Initialize the channel for posts
 const initPostBroadcast = () => {
     if (isSubscribed) return;
     isSubscribed = true;
     
-    supabase
-        .channel('post_broadcasts')
+    postChannel = supabase.channel('post_broadcasts');
+    postChannel
         .on(
             'broadcast',
             { event: 'post_update' },
-            (payload) => {
+            (payload: any) => {
                 const data = payload.payload as PostUpdatePayload;
                 listeners.forEach(listener => listener(data));
             }
@@ -42,11 +44,13 @@ export const broadcastPostUpdate = async (payload: PostUpdatePayload) => {
     listeners.forEach(listener => listener(payload));
     
     // Broadcast to other tabs/sessions
-    await supabase.channel('post_broadcasts').send({
-        type: 'broadcast',
-        event: 'post_update',
-        payload: payload
-    });
+    if (postChannel) {
+        await postChannel.send({
+            type: 'broadcast',
+            event: 'post_update',
+            payload: payload
+        });
+    }
 };
 
 export const fetchPostWithContext = async (postId: string, currentUsername?: string, currentUserId?: string) => {

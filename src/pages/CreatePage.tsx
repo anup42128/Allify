@@ -175,7 +175,7 @@ export const CreatePage = () => {
     };
 
     return (
-        <div className="h-full w-full bg-black text-white flex flex-col pt-10 px-4 md:px-0 overflow-y-auto custom-scrollbar">
+        <div className="h-full w-full bg-black text-white flex flex-col pt-6 md:pt-10 px-4 md:px-0 overflow-y-auto custom-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
             <AnimatePresence mode="wait">
                 {step === 'select' && (
                     <motion.div
@@ -214,19 +214,19 @@ export const CreatePage = () => {
                         ) : (
                             <div
                                 onClick={() => fileInputRef.current?.click()}
-                                className="group relative cursor-pointer"
+                                className="group relative cursor-pointer w-[80vw] max-w-sm aspect-[4/5] md:w-64 md:h-80 mx-auto"
                             >
-                                <div className="w-64 h-80 rounded-[2.5rem] border-2 border-dashed border-zinc-700 flex flex-col items-center justify-center gap-6 bg-zinc-900/30 group-hover:bg-zinc-900/50 group-hover:border-zinc-500 transition-all duration-300">
-                                    <div className="p-6 rounded-full bg-zinc-800 group-hover:scale-110 transition-transform duration-300">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-white">
+                                <div className="w-full h-full rounded-[2.5rem] border border-zinc-800 flex flex-col items-center justify-center gap-6 bg-zinc-900/40 backdrop-blur-md group-hover:bg-zinc-800/60 transition-all duration-300 shadow-xl">
+                                    <div className="p-5 md:p-6 rounded-full bg-zinc-800/80 group-hover:scale-105 transition-transform duration-300">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 md:w-10 md:h-10 text-white">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                                         </svg>
                                     </div>
-                                    <span className="font-medium text-zinc-400 group-hover:text-white transition-colors tracking-wide">Select from computer</span>
+                                    <div className="flex flex-col items-center">
+                                        <span className="font-medium text-zinc-300 group-hover:text-white transition-colors tracking-wide hidden md:block">Select from computer</span>
+                                        <span className="font-medium text-zinc-300 group-hover:text-white transition-colors tracking-wide md:hidden">Select from device</span>
+                                    </div>
                                 </div>
-
-                                {/* Decorative background glow */}
-                                <div className="absolute inset-0 bg-blue-500/20 blur-3xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
                             </div>
                         )}
                         <input
@@ -315,7 +315,7 @@ export const CreatePage = () => {
 
                         <div className="flex flex-col md:flex-row gap-8 px-4 items-stretch">
                             {/* Image/Video Preview */}
-                            <div className={`w-full bg-black rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center shrink min-w-0 md:max-w-[50%] ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'w-full md:w-auto min-h-[400px]'}`}>
+                            <div className={`w-full bg-black rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center shrink min-w-0 md:max-w-[50%] ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'w-full md:w-auto min-h-[250px] md:min-h-[400px]'}`}>
                                 {mediaType === 'video' && originalFile ? (
                                     <video
                                         src={URL.createObjectURL(originalFile)}
@@ -329,7 +329,7 @@ export const CreatePage = () => {
                                     <img
                                         src={URL.createObjectURL(croppedBlob || originalFile!)}
                                         alt="Preview"
-                                        className="w-auto h-auto min-w-[300px] max-w-full max-h-[70vh] md:max-h-[80vh] object-contain"
+                                        className="w-auto h-auto min-w-0 max-w-full max-h-[35vh] md:max-h-[80vh] object-contain"
                                     />
                                 )}
                                 {mediaType === 'video' && (
@@ -349,7 +349,7 @@ export const CreatePage = () => {
 
                             {/* Caption Input */}
                             <div className="flex-1 flex flex-col gap-4">
-                                <div className="bg-zinc-900/50 rounded-[2rem] border border-zinc-800 p-6 flex-1 min-h-[300px]">
+                                <div className="bg-zinc-900/50 rounded-[2rem] border border-zinc-800 p-6 flex-1 min-h-[150px] md:min-h-[300px]">
                                     <textarea
                                         value={caption}
                                         onChange={(e) => setCaption(e.target.value)}

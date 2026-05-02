@@ -44,13 +44,54 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     const [isSearching, setIsSearching] = useState(false);
     const [isOpeningChat, setIsOpeningChat] = useState<string | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+    const [conversationSearchQuery, setConversationSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+    const [isLocalSearching, setIsLocalSearching] = useState(false);
+
+    React.useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    React.useEffect(() => {
+        if (!conversationSearchQuery) {
+            setDebouncedSearchQuery('');
+            setIsLocalSearching(false);
+            return;
+        }
+        setIsLocalSearching(true);
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(conversationSearchQuery);
+            setIsLocalSearching(false);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [conversationSearchQuery]);
+
+    const displayedConversations = React.useMemo(() => {
+        if (!debouncedSearchQuery.trim()) return conversations;
+        const q = debouncedSearchQuery.toLowerCase();
+        
+        const matches = conversations.filter(conv => 
+            conv.other_user.username.toLowerCase().includes(q) || 
+            (conv.other_user.full_name && conv.other_user.full_name.toLowerCase().includes(q))
+        );
+        
+        const nonMatches = conversations.filter(conv => 
+            !(conv.other_user.username.toLowerCase().includes(q) || 
+             (conv.other_user.full_name && conv.other_user.full_name.toLowerCase().includes(q)))
+        );
+
+        return [...matches, ...nonMatches];
+    }, [conversations, debouncedSearchQuery]);
 
     return (
         <motion.div
-            initial={{ x: -20, opacity: 0 }}
+            initial={isMobile ? { x: 0, opacity: 1 } : { x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="w-[440px] flex-shrink-0 h-full border-r border-zinc-800/60 flex flex-col bg-black"
+            className="w-full md:w-[440px] flex-shrink-0 h-full md:border-r border-zinc-800/60 flex flex-col bg-black md:pb-0"
         >
             {/* Header */}
             <div className="px-5 pt-8 pb-4">
@@ -187,6 +228,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                         </svg>
                         <input
                             type="text"
+                            value={conversationSearchQuery}
+                            onChange={(e) => setConversationSearchQuery(e.target.value)}
                             placeholder="Search conversations"
                             className="w-full pl-9 pr-4 py-2 bg-zinc-900 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:bg-zinc-800 transition-colors"
                         />
@@ -195,8 +238,8 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             </div>
 
             {/* Conversation List */}
-            <div className="flex-1 overflow-y-auto px-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
-                {isLoadingConvs ? (
+            <div className="flex-1 overflow-y-auto px-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
+                {isLoadingConvs || isLocalSearching ? (
                     <div className="flex flex-col gap-3 px-3 pt-4">
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className="flex items-center gap-3 animate-pulse">
@@ -220,7 +263,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                     </div>
                 ) : (
                     <AnimatePresence>
-                        {conversations.map((conv, idx) => (
+                        {displayedConversations.map((conv, idx) => (
                             <motion.button
                                 key={conv.id}
                                 initial={{ opacity: 0, y: 10 }}

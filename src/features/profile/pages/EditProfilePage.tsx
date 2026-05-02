@@ -57,7 +57,6 @@ export const EditProfilePage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const [tempImage, setTempImage] = useState<string | null>(null);
-    const [showAvatarMenu, setShowAvatarMenu] = useState(false);
     const [editFormData, setEditFormData] = useState({
         username: '',
         full_name: '',
@@ -115,13 +114,11 @@ export const EditProfilePage = () => {
     };
 
     const handleAvatarClick = () => {
-        if (profile?.avatar_url) setShowAvatarMenu(true);
-        else fileInputRef.current?.click();
+        fileInputRef.current?.click();
     };
 
     const handleRemoveAvatar = async () => {
         const previousAvatarUrl = profile?.avatar_url;
-        setShowAvatarMenu(false);
         setIsUploading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -256,18 +253,18 @@ export const EditProfilePage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans p-4 md:p-12 overflow-y-auto custom-scrollbar">
-            <div className="max-w-3xl mx-auto">
+        <div className="min-h-screen bg-black text-white font-sans md:p-12 overflow-y-auto custom-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-12">
+            <div className="max-w-3xl mx-auto h-full md:h-auto">
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    className="bg-zinc-900/50 border border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col"
+                    className="bg-black md:bg-zinc-900/50 md:border border-zinc-800 md:rounded-[2.5rem] overflow-hidden md:shadow-2xl flex flex-col min-h-full md:min-h-0"
                 >
                     {/* Header */}
-                    <div className="p-8 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
+                    <div className="p-5 md:p-8 border-b border-zinc-800 flex items-center justify-between md:bg-zinc-900/50 sticky top-0 bg-black/80 backdrop-blur-xl z-20">
                         <div>
-                            <h2 className="text-white text-3xl font-bold tracking-tight">Edit Profile</h2>
-                            <p className="text-zinc-500 text-sm mt-1 font-medium">Customize your Allify presence</p>
+                            <h2 className="text-white text-2xl md:text-3xl font-bold tracking-tight">Edit Profile</h2>
+                            <p className="text-zinc-500 text-xs md:text-sm mt-1 font-medium">Customize your Allify presence</p>
                         </div>
                         <button
                             onClick={() => navigate('/profile')}
@@ -280,7 +277,7 @@ export const EditProfilePage = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="p-8 space-y-12">
+                    <div className="p-5 md:p-8 space-y-8 md:space-y-12">
                         {/* Avatar Section */}
                         <div className="flex flex-col items-center">
                             <div onClick={handleAvatarClick} className="relative group cursor-pointer">
@@ -304,19 +301,17 @@ export const EditProfilePage = () => {
                             </div>
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
-                            <AnimatePresence>
-                                {showAvatarMenu && (
-                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="mt-4 flex gap-4">
-                                        <button onClick={() => { setShowAvatarMenu(false); fileInputRef.current?.click(); }} className="px-4 py-2 bg-zinc-800 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-700">Change</button>
-                                        <button onClick={handleRemoveAvatar} className="px-4 py-2 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-500/20">Remove</button>
-                                    </motion.div>
+                            <div className="mt-5 flex gap-4">
+                                {profile?.avatar_url && (
+                                    <button onClick={handleRemoveAvatar} className="px-5 py-2.5 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-500/20 transition-colors">Remove</button>
                                 )}
-                            </AnimatePresence>
+                                <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2.5 bg-zinc-800 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-700 transition-colors">Change</button>
+                            </div>
                         </div>
 
                         {/* Form Fields */}
-                        <div className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6 md:space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
                                 <div className="space-y-3">
                                     <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest ml-1">Username</label>
                                     <div className="relative">
@@ -325,7 +320,7 @@ export const EditProfilePage = () => {
                                             type="text"
                                             value={editFormData.username}
                                             onChange={handleUsernameChange}
-                                            className={`w-full bg-zinc-950 border ${editErrors.username ? 'border-red-500' : 'border-zinc-800 focus:border-white'} rounded-2xl pl-10 pr-12 py-4 text-white outline-none transition-all`}
+                                            className={`w-full bg-zinc-950 border ${editErrors.username ? 'border-red-500' : 'border-zinc-800 focus:border-white'} rounded-2xl pl-10 pr-12 py-3 md:py-4 text-white outline-none transition-all`}
                                         />
                                         {isCheckingUsername && <div className="absolute right-5 top-1/2 -translate-y-1/2 animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />}
                                     </div>
@@ -333,7 +328,7 @@ export const EditProfilePage = () => {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest ml-1">Full Name</label>
-                                    <input type="text" value={editFormData.full_name} disabled className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-zinc-600 opacity-50 cursor-not-allowed" />
+                                    <input type="text" value={editFormData.full_name} disabled className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 md:py-4 text-zinc-600 opacity-50 cursor-not-allowed" />
                                 </div>
                             </div>
 
@@ -352,7 +347,7 @@ export const EditProfilePage = () => {
                                 <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Note: Lines without spaces will automatically wrap down to fit beautifully on your profile.</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center ml-1">
                                         <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">Location</label>
@@ -362,7 +357,7 @@ export const EditProfilePage = () => {
                                         type="text"
                                         value={editFormData.location}
                                         onChange={(e) => setEditFormData(prev => ({ ...prev, location: e.target.value }))}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white focus:border-white transition-all outline-none"
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 md:py-4 text-white focus:border-white transition-all outline-none"
                                         maxLength={30}
                                     />
                                     <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Location will be visible to other users.</p>
@@ -376,7 +371,7 @@ export const EditProfilePage = () => {
                                         type="text"
                                         value={editFormData.website}
                                         onChange={(e) => setEditFormData(prev => ({ ...prev, website: e.target.value }))}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white focus:border-white transition-all outline-none"
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 md:py-4 text-white focus:border-white transition-all outline-none"
                                         maxLength={50}
                                     />
                                     <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Website will be visible to other users.</p>
@@ -389,7 +384,7 @@ export const EditProfilePage = () => {
                                     <div className="w-1 h-6 bg-zinc-600 rounded-full"></div>
                                     <h3 className="text-zinc-500 font-black tracking-[0.2em] text-[10px] uppercase">Earned Achievements</h3>
                                 </div>
-                                <div className="bg-zinc-950/50 border border-zinc-800 rounded-3xl p-6">
+                                <div className="bg-zinc-950/50 border border-zinc-800 rounded-3xl p-5 md:p-6">
                                     {profile?.badges && profile.badges.length > 0 ? (
                                         <div className="flex flex-wrap gap-4">
                                             {profile.badges.map(id => {
@@ -412,12 +407,12 @@ export const EditProfilePage = () => {
                     </div>
 
                     {/* Footer */}
-                    <div className="p-8 border-t border-zinc-800 bg-zinc-900/50 flex gap-4">
-                        <button onClick={() => navigate('/profile')} className="flex-1 py-4 bg-zinc-800 rounded-2xl font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Discard</button>
+                    <div className="p-5 md:p-8 border-t border-zinc-800 md:bg-zinc-900/50 flex gap-3 md:gap-4 mt-auto">
+                        <button onClick={() => navigate('/profile')} className="flex-1 py-3 md:py-4 bg-zinc-800 rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Discard</button>
                         <button
                             onClick={handleSaveChanges}
                             disabled={!!editErrors.username || isCheckingUsername || isUploading}
-                            className="flex-1 py-4 bg-white text-black rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-xl"
+                            className="flex-[1.5] md:flex-1 py-3 md:py-4 bg-white text-black rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-xl"
                         >
                             {isUploading ? 'Saving...' : 'Save Changes'}
                         </button>

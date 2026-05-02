@@ -12,6 +12,7 @@ export interface Conversation {
     last_message_time: string | null;
     other_user: Participant;
     unread_count: number;
+    initiated_by?: string | null;
 }
 
 export interface Message {

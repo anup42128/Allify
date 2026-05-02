@@ -38,6 +38,13 @@ export const MessageInputArea = ({
     // Support both forwarded and internal ref
     const inputRef = (externalRef as React.RefObject<HTMLTextAreaElement>) || internalRef;
 
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Typing debounce
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isSendingTypingRef = useRef(false);
@@ -50,10 +57,10 @@ export const MessageInputArea = ({
             const height = draft?.height || 'auto';
             setInputText(text);
             setInputHeight(height);
-            // Move cursor to end after React renders the restored value
+            // Move cursor to end after React renders the restored value (only on desktop to prevent mobile keyboard pop-up)
             setTimeout(() => {
                 const el = inputRef.current;
-                if (el) el.setSelectionRange(text.length, text.length);
+                if (el && !isMobile) el.setSelectionRange(text.length, text.length);
             }, 0);
         } else {
             setInputText('');
@@ -123,6 +130,7 @@ export const MessageInputArea = ({
         setInputHeight('auto');
         if (inputRef.current) {
             inputRef.current.style.height = 'auto';
+            inputRef.current.focus(); // Force keyboard to stay open
         }
 
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -256,7 +264,7 @@ export const MessageInputArea = ({
                                 placeholder={`Message ${displayUser.username}...`}
                                 className="flex-1 min-w-0 break-words bg-transparent text-white text-base placeholder-zinc-500 resize-none focus:outline-none py-1.5 max-h-[120px]"
                                 style={{ height: inputHeight, minHeight: '24px' }}
-                                autoFocus
+                                autoFocus={!isMobile}
                             />
                         )}
                     </AnimatePresence>
@@ -269,6 +277,9 @@ export const MessageInputArea = ({
                                 initial={{ scale: 0, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0, opacity: 0 }}
+                                onMouseDown={(e) => {
+                                    e.preventDefault(); // Prevent input blur on mobile touch so keyboard stays open
+                                }}
                                 onClick={handleSend}
                                 disabled={isSending}
                                 className="w-9 h-9 flex items-center justify-center text-white active:scale-95 cursor-pointer"

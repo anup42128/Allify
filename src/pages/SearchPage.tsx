@@ -1,37 +1,66 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { SearchProfileView } from '../features/profile/components/SearchProfileView';
-import { getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches, type RecentSearchUser } from '../lib/recentSearchStore';
+import { getLocalRecentSearches, fetchRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches, type RecentSearchUser } from '../lib/recentSearchStore';
 
 export const SearchPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedUser, setSelectedUser] = useState<any | null>(null);
+    const selectedUserRef = useRef<any | null>(null);
     const [recentSearches, setRecentSearches] = useState<RecentSearchUser[]>([]);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+    useEffect(() => {
+        selectedUserRef.current = selectedUser;
+    }, [selectedUser]);
+
+    // Handle hardware back button to close profile view instead of leaving page
+    useEffect(() => {
+        const handlePopState = () => {
+            if (selectedUserRef.current) {
+                setSelectedUser(null);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Handle resize for mobile animation toggle
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Get current user ID and load their recents
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            const uid = data.user?.id ?? null;
+        supabase.auth.getSession().then(async ({ data }) => {
+            const uid = data.session?.user?.id ?? null;
             setCurrentUserId(uid);
             if (uid) {
-                const recents = getRecentSearches(uid);
-                setRecentSearches(recents);
+                // 1. Instantly load local cache for fast UI
+                const localRecents = getLocalRecentSearches(uid);
+                setRecentSearches(localRecents);
+
+                // 2. Fetch fresh searches from Supabase (syncs across devices)
+                const freshRecents = await fetchRecentSearches(uid);
+                setRecentSearches(freshRecents);
 
                 // Background refresh to keep recent search avatars and names up-to-date
-                if (recents.length > 0) {
+                if (freshRecents.length > 0) {
                     supabase
                         .from('profiles')
                         .select('id, username, full_name, avatar_url')
-                        .in('id', recents.map(r => r.id))
+                        .in('id', freshRecents.map(r => r.id))
                         .then(({ data: freshProfiles }) => {
                             if (freshProfiles && freshProfiles.length > 0) {
                                 let updated = false;
                                 const freshMap = Object.fromEntries(freshProfiles.map(p => [p.id, p]));
-                                const newRecents = recents.map(r => {
+                                const newRecents = freshRecents.map(r => {
                                     const fresh = freshMap[r.id];
                                     if (fresh && (fresh.avatar_url !== r.avatar_url || fresh.full_name !== r.full_name || fresh.username !== r.username)) {
                                         updated = true;
@@ -41,6 +70,8 @@ export const SearchPage = () => {
                                 });
                                 if (updated) {
                                     localStorage.setItem(`allify_recent_searches_${uid}`, JSON.stringify(newRecents));
+                                    // Update DB with fresh avatars too since we noticed a change
+                                    supabase.from('profiles').update({ recent_searches: newRecents }).eq('id', uid);
                                     setRecentSearches(newRecents);
                                 }
                             }
@@ -80,12 +111,12 @@ export const SearchPage = () => {
     return (
         <div className="flex h-full w-full bg-black overflow-hidden relative">
             
-            {/* Sliding Sidebar Drawer */}
+            {/* Sliding Sidebar Drawer (Hidden on mobile when a user is selected) */}
             <motion.div 
-                initial={{ x: -375, opacity: 0 }}
+                initial={isMobile ? { x: 0, opacity: 1 } : { x: -375, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="w-[375px] flex-shrink-0 h-full border-r border-zinc-900/50 bg-black flex flex-col z-10"
+                className={`w-full md:w-[375px] flex-shrink-0 h-full border-r border-zinc-900/50 bg-black flex flex-col z-10 md:pb-0 ${selectedUser ? 'hidden md:flex' : 'flex'}`}
             >
                 <div className="pt-8 pb-4 px-6">
                     <h1 className="text-white text-2xl font-bold mb-6">Search</h1>
@@ -137,13 +168,27 @@ export const SearchPage = () => {
                                                 className="flex items-center gap-3 flex-1 min-w-0"
                                                 onClick={() => {
                                                     addRecentSearch(currentUserId ?? '', user);
-                                                    setRecentSearches(getRecentSearches(currentUserId ?? ''));
+                                                    setRecentSearches(getLocalRecentSearches(currentUserId ?? ''));
+                                                    if (!selectedUserRef.current) {
+                                                        window.history.pushState({ searchProfileOpen: true }, '');
+                                                    }
                                                     setSelectedUser(user);
                                                 }}
                                             >
-                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 border border-zinc-700/50">
+                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 border border-zinc-700/50 relative">
                                                     {user.avatar_url ? (
-                                                        <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                                                        <>
+                                                            <div id={`search-loader-recent-${user.id}`} className="absolute inset-0 animate-pulse bg-zinc-700/50 z-10" />
+                                                            <img 
+                                                                src={user.avatar_url} 
+                                                                alt={user.username} 
+                                                                className="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-20" 
+                                                                onLoad={(e) => {
+                                                                    (e.target as HTMLImageElement).classList.remove('opacity-0');
+                                                                    document.getElementById(`search-loader-recent-${user.id}`)?.classList.add('hidden');
+                                                                }}
+                                                            />
+                                                        </>
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-zinc-500">
                                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
@@ -163,9 +208,9 @@ export const SearchPage = () => {
                                             onClick={(e) => {
                                                     e.stopPropagation();
                                                     removeRecentSearch(currentUserId ?? '', user.id);
-                                                    setRecentSearches(getRecentSearches(currentUserId ?? ''));
+                                                    setRecentSearches(getLocalRecentSearches(currentUserId ?? ''));
                                                 }}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full text-zinc-600 hover:text-zinc-300 hover:bg-zinc-700/50 transition-all flex-shrink-0"
+                                                className="w-10 h-10 flex items-center justify-center rounded-full text-zinc-600 hover:text-zinc-300 hover:bg-zinc-700/50 transition-all flex-shrink-0 -mr-1"
                                                 title="Remove"
                                             >
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
@@ -191,14 +236,28 @@ export const SearchPage = () => {
                                     key={user.id} 
                                     onClick={() => {
                                         addRecentSearch(currentUserId ?? '', { id: user.id, username: user.username, full_name: user.full_name, avatar_url: user.avatar_url });
-                                        setRecentSearches(getRecentSearches(currentUserId ?? ''));
+                                        setRecentSearches(getLocalRecentSearches(currentUserId ?? ''));
+                                        if (!selectedUserRef.current) {
+                                            window.history.pushState({ searchProfileOpen: true }, '');
+                                        }
                                         setSelectedUser(user);
                                     }}
                                     className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${selectedUser?.id === user.id ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'}`}
                                 >
-                                    <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 relative">
                                         {user.avatar_url ? (
-                                            <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                                            <>
+                                                <div id={`search-loader-result-${user.id}`} className="absolute inset-0 animate-pulse bg-zinc-700/50 z-10" />
+                                                <img 
+                                                    src={user.avatar_url} 
+                                                    alt={user.username} 
+                                                    className="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-20" 
+                                                    onLoad={(e) => {
+                                                        (e.target as HTMLImageElement).classList.remove('opacity-0');
+                                                        document.getElementById(`search-loader-result-${user.id}`)?.classList.add('hidden');
+                                                    }}
+                                                />
+                                            </>
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-zinc-500">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
@@ -224,35 +283,42 @@ export const SearchPage = () => {
                 </div>
             </motion.div>
 
-            {/* Right Main Content Area */}
-            {selectedUser ? (
-                <SearchProfileView 
-                    username={selectedUser.username} 
-                    onBack={() => setSelectedUser(null)} 
-                />
-            ) : (
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.1, duration: 0.5 }}
-                    className="flex-1 h-full flex flex-col items-center justify-center bg-black relative overflow-hidden"
-                >
-                    <div className="flex flex-col items-center text-center max-w-sm px-6 relative z-10">
-                        <div className="mb-8 p-6 rounded-full border border-zinc-800/50 bg-gradient-to-br from-zinc-900 to-black shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-zinc-300">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                            </svg>
+            {/* Right Main Content Area (Hidden on mobile when NO user is selected) */}
+            <div className={`flex-1 h-full bg-black overflow-hidden ${selectedUser ? 'block' : 'hidden md:block'}`}>
+                {selectedUser ? (
+                    <SearchProfileView 
+                        username={selectedUser.username} 
+                        onBack={() => {
+                            setSelectedUser(null);
+                            if (window.history.state?.searchProfileOpen) {
+                                window.history.back();
+                            }
+                        }} 
+                    />
+                ) : (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.1, duration: 0.5 }}
+                        className="flex-1 h-full flex flex-col items-center justify-center bg-black relative overflow-hidden"
+                    >
+                        <div className="flex flex-col items-center text-center max-w-sm px-6 relative z-10">
+                            <div className="mb-8 p-6 rounded-full border border-zinc-800/50 bg-gradient-to-br from-zinc-900 to-black shadow-[0_0_40px_rgba(0,0,0,0.8)]">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 text-zinc-300">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                </svg>
+                            </div>
+                            
+                            <h2 className="text-3xl font-bold mb-3 tracking-tight bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">
+                                Discover Allify
+                            </h2>
+                            <p className="text-zinc-400 text-base leading-relaxed tracking-wide font-light">
+                                Search for creators, explore tags, and find new inspiration from around the world.
+                            </p>
                         </div>
-                        
-                        <h2 className="text-3xl font-bold mb-3 tracking-tight bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">
-                            Discover Allify
-                        </h2>
-                        <p className="text-zinc-400 text-base leading-relaxed tracking-wide font-light">
-                            Search for creators, explore tags, and find new inspiration from around the world.
-                        </p>
-                    </div>
-                </motion.div>
-            )}
+                    </motion.div>
+                )}
+            </div>
 
         </div>
     );

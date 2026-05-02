@@ -1,4 +1,4 @@
-
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ConversationSidebar } from '../components/chat/ConversationSidebar';
 import { Avatar } from '../components/chat/Avatar';
@@ -9,6 +9,8 @@ import { DeleteMessageModal } from '../components/chat/DeleteMessageModal';
 import { useChatManager } from '../hooks/useChatManager';
 
 export const MessagesPage = () => {
+    const [activeMobileHoverId, setActiveMobileHoverId] = useState<string | null>(null);
+
     const {
         // State Models
         currentUser,
@@ -39,6 +41,7 @@ export const MessagesPage = () => {
 
         // Actions
         openConversation,
+        closeConversation,
         handleStartNewChat,
         handleSendMessageText,
         handleVoiceRecordStopFromInput,
@@ -53,19 +56,51 @@ export const MessagesPage = () => {
         typingChannelRef
     } = useChatManager();
 
-    return (
-        <div className="flex h-full w-full bg-black overflow-hidden" onClick={() => { setActiveReactMsg(null); setUnsendMsgId(null); }}>
-            <ConversationSidebar
-                currentUser={currentUser}
-                conversations={conversations}
-                activeConvId={activeConvId}
-                isLoadingConvs={isLoadingConvs}
-                onStartNewChat={handleStartNewChat}
-                onSelectConversation={openConversation}
-            />
+    // Optimize the "Seen" badge to ONLY appear on the absolute latest message that the other person read.
+    // This perfectly mimics Instagram/iMessage and prevents massive layout lag when 50 messages are marked seen at once.
+    // If the other person has sent a newer message, it implies they saw the chat, so we hide the seen badge completely!
+    const lastSeenMsgId = useMemo(() => {
+        if (!messages) return null;
+        
+        for (let i = messages.length - 1; i >= 0; i--) {
+            // If we hit a message from the other user BEFORE we find our last seen message, 
+            // it means they replied. Since they replied, the conversation moved forward, so hide the seen badge.
+            if (messages[i].sender_id !== currentUser?.id) {
+                return null;
+            }
 
-            {/* ── RIGHT PANEL: Chat Window ──────────────────────────────────────── */}
-            <div className="flex-1 h-full flex flex-col bg-black overflow-hidden">
+            if (messages[i].sender_id === currentUser?.id && messages[i].seen && !messages[i].optimistic) {
+                return messages[i].id;
+            }
+        }
+        return null;
+    }, [messages, currentUser?.id]);
+
+    // Notify the Sidebar to hide itself on mobile when a chat is open
+    useEffect(() => {
+        const event = new CustomEvent('chat-active', { detail: !!activeConvId });
+        window.dispatchEvent(event);
+        return () => {
+            window.dispatchEvent(new CustomEvent('chat-active', { detail: false }));
+        };
+    }, [activeConvId]);
+
+    return (
+        <div className="flex h-full w-full bg-black overflow-hidden" onClick={() => { setActiveReactMsg(null); setUnsendMsgId(null); setActiveMobileHoverId(null); }}>
+            {/* ── LEFT PANEL: Sidebar (Hidden on mobile when chat is open OR being opened) ── */}
+            <div className={`h-full w-full md:w-auto flex-shrink-0 ${(activeConvId || isOpeningChat) ? 'hidden md:flex' : 'flex'}`}>
+                <ConversationSidebar
+                    currentUser={currentUser}
+                    conversations={conversations}
+                    activeConvId={activeConvId}
+                    isLoadingConvs={isLoadingConvs}
+                    onStartNewChat={handleStartNewChat}
+                    onSelectConversation={openConversation}
+                />
+            </div>
+
+            {/* ── RIGHT PANEL: Chat Window (Visible on mobile when chat is open OR being opened) ── */}
+            <div className={`flex-1 h-full flex-col bg-black overflow-hidden ${(activeConvId || isOpeningChat) ? 'flex' : 'hidden md:flex'}`}>
                 <AnimatePresence mode="wait">
                     {activeConvId && displayUser ? (
                         <motion.div
@@ -76,7 +111,7 @@ export const MessagesPage = () => {
                             className="flex-1 flex flex-col min-h-0"
                         >
                             {/* Chat Header */}
-                            <ChatHeader user={displayUser} />
+                            <ChatHeader user={displayUser} onBack={closeConversation} />
 
                             {/* Messages Area */}
                             <div ref={scrollContainerRef} onScroll={() => handleReadReceipts(true)} className="flex-1 overflow-y-auto px-4 pt-2 pb-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
@@ -135,10 +170,13 @@ export const MessagesPage = () => {
                                                             isMe={isMe}
                                                             isContinuation={isContinuation}
                                                             isLastInGroup={isLastInGroup}
+                                                            isLastSeen={msg.id === lastSeenMsgId}
                                                             initialUnreadId={initialUnreadId}
                                                             activeReactMsg={activeReactMsg}
                                                             unsendMsgId={unsendMsgId}
                                                             copiedMsgId={copiedMsgId}
+                                                            activeMobileHoverId={activeMobileHoverId}
+                                                            setActiveMobileHoverId={setActiveMobileHoverId}
                                                             setActiveReactMsg={setActiveReactMsg}
                                                             setUnsendMsgId={setUnsendMsgId}
                                                             setConfirmDeleteId={setConfirmDeleteId}
@@ -211,6 +249,7 @@ export const MessagesPage = () => {
                             key="opening"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
+                            exit={{ opacity: 0, transition: { duration: 0 } }}
                             className="flex-1 h-full flex flex-col items-center justify-center text-center px-8"
                         >
                             <div className="flex flex-col items-center gap-4">
@@ -223,7 +262,8 @@ export const MessagesPage = () => {
                             key="empty"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="flex-1 h-full flex flex-col items-center justify-center text-center px-8"
+                            exit={{ opacity: 0, transition: { duration: 0 } }}
+                            className={`flex-1 h-full flex flex-col items-center justify-center text-center px-8 ${activeConvId ? 'hidden' : ''}`}
                         >
                             <motion.div
                                 initial={{ scale: 0.9, opacity: 0 }}

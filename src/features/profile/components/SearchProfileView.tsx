@@ -52,7 +52,7 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
 
     return (
         <div ref={scrollRef} className="flex-1 h-full overflow-y-auto custom-scrollbar bg-black relative">
-            <div className="min-h-full flex flex-col pt-16 px-10 max-w-5xl mx-auto pb-20">
+            <div className="min-h-full flex flex-col pt-3 px-0 md:pt-16 md:px-10 max-w-5xl mx-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-20">
 
                 {/* Scroll-shrinking close button */}
                 {onBack && (
@@ -62,7 +62,7 @@ export const SearchProfileView = ({ username, onBack }: SearchProfileViewProps) 
                         animate={{ scale: buttonScale, opacity: buttonOpacity }}
                         whileHover={{ scale: Math.max(buttonScale, 0.75), opacity: 1 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className="fixed top-5 right-8 p-3 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full border border-zinc-800/50 z-50 backdrop-blur-md shadow-xl"
+                        className="fixed top-2 right-2 md:top-5 md:right-8 p-3 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full border border-zinc-800/50 z-50 backdrop-blur-md shadow-xl"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </motion.button>

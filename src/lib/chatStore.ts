@@ -1,10 +1,38 @@
 import type { Conversation, Message } from '../types/chat';
 import { supabase } from './supabase';
 
+// Synchronously read the current auth session userId from Supabase's localStorage entry
+const _currentSessionUserId = (() => {
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.includes('auth-token')) {
+                const val = JSON.parse(localStorage.getItem(key) || '{}');
+                const uid = val?.user?.id;
+                if (uid) return uid as string;
+            }
+        }
+    } catch {}
+    return '';
+})();
+
+const CACHE_KEY = (userId: string) => `allify_chat_cache_${userId}`;
+
+const loadCache = (userId: string): Conversation[] | null => {
+    try { 
+        const data = localStorage.getItem(CACHE_KEY(userId));
+        return data ? JSON.parse(data) : null;
+    } catch { return null; }
+};
+
+const persistCache = (c: Conversation[], userId: string | null) => {
+    if (!userId) return;
+    try { localStorage.setItem(CACHE_KEY(userId), JSON.stringify(c)); } catch {}
+};
+
 // ─── Global State Variables ────────────────────────────────────────────────────────
-// These variables live in memory outside the React lifecycle, ensuring that 
-// even when "MessagesPage" is unmounted, they retain the latest data instantly.
-export let cachedConversations: Conversation[] | null = null;
+export let activeSyncUserId: string | null = null;
+export let cachedConversations: Conversation[] | null = _currentSessionUserId ? loadCache(_currentSessionUserId) : null;
 export const cachedMessages = new Map<string, Message[]>();
 
 // A simple event emitter to re-render MessagesPage when background updates occur
@@ -22,11 +50,13 @@ export const notifyChatUpdates = () => {
 
 export const setCachedConversations = (c: Conversation[]) => {
     cachedConversations = c;
+    persistCache(c, activeSyncUserId || _currentSessionUserId);
     notifyChatUpdates();
 };
 
 export const updateCachedConversationsSilently = (c: Conversation[]) => {
     cachedConversations = c;
+    persistCache(c, activeSyncUserId || _currentSessionUserId);
 };
 
 export const getCachedConversations = () => cachedConversations;
@@ -49,7 +79,7 @@ export const fetchGlobalConversations = async (userId: string) => {
 
         const { data: convData } = await supabase
             .from('conversations')
-            .select('*')
+            .select('id, last_message, last_message_time, initiated_by')
             .in('id', convIds)
             .order('last_message_time', { ascending: false, nullsFirst: false });
 
@@ -96,6 +126,7 @@ export const fetchGlobalConversations = async (userId: string) => {
                 last_message_time: conv.last_message_time,
                 other_user: otherProfile as any,
                 unread_count: unreadMap.get(conv.id) || 0,
+                initiated_by: conv.initiated_by ?? null,
             });
         }
 
@@ -111,12 +142,9 @@ export const fetchGlobalConversations = async (userId: string) => {
             }
         }
 
-        const initiatedStr = localStorage.getItem(`initiated_chats_${userId}`) || '[]';
-        let initiatedIds: string[] = [];
-        try { initiatedIds = JSON.parse(initiatedStr); } catch (e) {}
-
-        const finalConvs = [...seen.values()].filter(c => 
-            (c.last_message && c.last_message.trim() !== '') || initiatedIds.includes(c.id)
+        // Show a conversation if it has at least one message, OR if the current user initiated it (cross-device sync via DB!)
+        const finalConvs = [...seen.values()].filter(c =>
+            (c.last_message && c.last_message.trim() !== '') || c.initiated_by === userId
         );
         setCachedConversations(finalConvs);
     } catch (e) {
@@ -125,19 +153,33 @@ export const fetchGlobalConversations = async (userId: string) => {
 };
 
 // ─── Global Background Sync Engine ───────────────────────────────────────────────
-let isGlobalSyncActive = false;
+let activeChannels: any[] = [];
+
+export const clearGlobalChatCache = () => {
+    cachedConversations = null;
+    cachedMessages.clear();
+    activeChannels.forEach(ch => supabase.removeChannel(ch));
+    activeChannels = [];
+    activeSyncUserId = null;
+    notifyChatUpdates();
+};
 
 // Mounted explicitly in MainLayout.tsx to run silently across ALL application routes
-export const initGlobalChatSync = (userId: string) => {
-    if (isGlobalSyncActive) return;
-    isGlobalSyncActive = true;
+export const initGlobalChatSync = async (userId: string) => {
+    if (activeSyncUserId === userId) return; // already syncing for this user
 
-    // Initial Fetch
-    fetchGlobalConversations(userId);
+    if (activeSyncUserId && activeSyncUserId !== userId) {
+        clearGlobalChatCache();
+    }
+
+    activeSyncUserId = userId;
+
+    // Initial Fetch - Wait for this to complete before resolving
+    await fetchGlobalConversations(userId);
 
     // Any incoming message triggers an exact cache rebuild silently
     // We strictly apply Optimistic UI updates first to eliminate all navigation-based loading lag!
-    supabase
+    const msgChannel = supabase
         .channel(`global-sync-msg-${userId}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
             const newMsg = payload.new;
@@ -178,10 +220,26 @@ export const initGlobalChatSync = (userId: string) => {
         })
         .subscribe();
     
-    supabase
+    const convChannel = supabase
         .channel(`global-sync-conv-${userId}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, () => {
             fetchGlobalConversations(userId);
         })
         .subscribe();
+
+    // Listen for new conversation_participants rows — this fires on ALL devices when a new
+    // chat is created (even an empty one with no messages), giving us instant cross-device sync!
+    const participantChannel = supabase
+        .channel(`global-sync-participants-${userId}`)
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${userId}` },
+            () => {
+                // A new conversation was just added for this user — refetch immediately!
+                setTimeout(() => fetchGlobalConversations(userId), 300);
+            }
+        )
+        .subscribe();
+
+    activeChannels.push(msgChannel, convChannel, participantChannel);
 };

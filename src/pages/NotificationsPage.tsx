@@ -1,11 +1,13 @@
 
 import { AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { PostDetailModal } from '../features/profile/components/PostDetailModal';
 import { NotificationItem } from '../components/notifications/NotificationItem';
 import { NotificationRightPanel } from '../components/notifications/NotificationRightPanel';
 import { useNotificationsManager } from '../hooks/useNotificationsManager';
 
 export const NotificationsPage = () => {
+    const navigate = useNavigate();
     const {
         notifs,
         unread,
@@ -21,12 +23,22 @@ export const NotificationsPage = () => {
     } = useNotificationsManager();
 
     return (
-        <div className="flex h-screen bg-black overflow-hidden relative">
+        <div className="flex h-full w-full bg-black overflow-hidden relative">
             
             {/* Left Sidebar - Notifications List */}
             <div className="w-full md:w-[400px] xl:w-[450px] border-r border-zinc-900/50 flex flex-col bg-black flex-shrink-0 z-10 transition-all">
-                <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-zinc-900/50 px-6 py-5 flex items-center justify-between">
-                    <h1 className="text-2xl font-black text-white tracking-tight">Notifications</h1>
+                <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-zinc-900/50 px-4 md:px-6 py-4 md:py-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="md:hidden w-10 h-10 -ml-2 rounded-full flex items-center justify-center hover:bg-zinc-800/80 transition-colors text-white"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <h1 className="text-2xl font-black text-white tracking-tight">Notifications</h1>
+                    </div>
                     {unread > 0 && (
                         <button 
                             onClick={handleMarkAllRead}
@@ -37,7 +49,7 @@ export const NotificationsPage = () => {
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-4 relative">
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-4 relative">
                     {/* Subtle indigo shimmer bar at top — never hides the list */}
                     {isRefreshing && (
                         <div className="sticky top-0 z-10 h-0.5 w-full overflow-hidden bg-transparent">

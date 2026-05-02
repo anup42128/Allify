@@ -20,7 +20,7 @@ const formatLastSeen = (iso: string | null | undefined): string => {
     return `was online ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${timeStr}`;
 };
 
-export const ChatHeader = ({ user }: { user: Partial<Participant> }) => {
+export const ChatHeader = ({ user, onBack }: { user: Partial<Participant>, onBack?: () => void }) => {
     const isOnline = useOnlineStatus(user?.id);
     // Reads last_seen timestamp delivered via broadcast — no DB query
     const broadcastLastSeen = useLastSeen(user?.id);
@@ -34,10 +34,22 @@ export const ChatHeader = ({ user }: { user: Partial<Participant> }) => {
     }, [user?.id]);
 
     return (
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800/60 flex-shrink-0 bg-black/80 backdrop-blur-md">
-            <Avatar user={user} />
-            <div>
-                <p className="text-white font-bold text-sm">@{user.username}</p>
+        <div className="flex items-center gap-3 px-3 md:px-5 py-3 md:py-4 border-b border-zinc-800/60 flex-shrink-0 bg-black/80 backdrop-blur-md">
+            {onBack && (
+                <button
+                    onClick={onBack}
+                    className="md:hidden w-10 h-10 -ml-1 rounded-full flex items-center justify-center hover:bg-zinc-800/80 transition-colors text-white"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+            )}
+            <div className="flex-shrink-0">
+                <Avatar user={user} size="sm" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm truncate">@{user.username}</p>
                 <AnimatePresence mode="wait">
                     {isOnline ? (
                         <motion.p
@@ -64,6 +76,17 @@ export const ChatHeader = ({ user }: { user: Partial<Participant> }) => {
                     )}
                 </AnimatePresence>
             </div>
+            {onBack && (
+                <button
+                    onClick={onBack}
+                    title="Close chat"
+                    className="hidden md:flex w-9 h-9 rounded-full items-center justify-center hover:bg-zinc-800/80 transition-colors text-zinc-400 hover:text-white ml-2"
+                >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            )}
         </div>
     );
 };

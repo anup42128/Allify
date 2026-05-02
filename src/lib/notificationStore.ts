@@ -15,7 +15,6 @@ export interface AppNotification {
 // Per-user cache key to prevent cross-user notification leakage
 const CACHE_KEY = (userId: string) => `allify_notif_cache_${userId}`;
 const BADGE_KEY = (userId: string) => `allify_badge_count_${userId}`;
-const LAST_USER_KEY = 'allify_last_user_id';
 
 const persistCache = (data: AppNotification[], userId: string) => {
     try { localStorage.setItem(CACHE_KEY(userId), JSON.stringify(data)); } catch {}
@@ -30,11 +29,8 @@ const loadBadge = (userId: string): number => {
     try { return parseInt(localStorage.getItem(BADGE_KEY(userId)) || '0', 10); } catch { return 0; }
 };
 
-// Pre-seed from last known user's cache so hard refresh never shows blank
-const _lastUserId = (() => { try { return localStorage.getItem(LAST_USER_KEY) || ''; } catch { return ''; } })();
-
 // Synchronously read the current auth session userId from Supabase's localStorage entry
-// This prevents cross-user leakage when a different user logs in on the same device
+// This prevents cross-user leakage and guarantees instant pre-seeding for the correct user!
 const _currentSessionUserId = (() => {
     try {
         for (let i = 0; i < localStorage.length; i++) {
@@ -49,10 +45,8 @@ const _currentSessionUserId = (() => {
     return '';
 })();
 
-// Only pre-seed if the auth session matches our last-known user — never leak across users
-const _canPreSeed = !!_lastUserId && !!_currentSessionUserId && _lastUserId === _currentSessionUserId;
-export let cachedNotifications: AppNotification[] = _canPreSeed ? loadCache(_lastUserId) : [];
-export let unreadNotificationCount: number = _canPreSeed ? loadBadge(_lastUserId) : 0;
+export let cachedNotifications: AppNotification[] = _currentSessionUserId ? loadCache(_currentSessionUserId) : [];
+export let unreadNotificationCount: number = _currentSessionUserId ? loadBadge(_currentSessionUserId) : 0;
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -76,9 +70,29 @@ export const broadcastNotificationPing = async (recipientUsername: string) => {
     }).catch(() => {});
 };
 
+export const broadcastFollowUpdate = (targetUserId: string, action: 'follow' | 'unfollow', newAlliesCount: number, newAlliedCount: number) => {
+    // Send directly to the dedicated per-user channel so all listeners match
+    supabase.channel(`follow-updates-${targetUserId}`).send({
+        type: 'broadcast',
+        event: 'follow_update',
+        payload: { target_user_id: targetUserId, action, new_allies_count: newAlliesCount, new_allied_count: newAlliedCount }
+    }).catch(() => {});
+};
+
 // ─── Global Background Sync Engine ───────────────────────────────────────────────
 let activeSyncUsername: string | null = null;
 let activeSyncUserId: string | null = null;
+let activeChannels: any[] = [];
+
+export const clearGlobalNotificationCache = (newUserId?: string) => {
+    cachedNotifications = newUserId ? loadCache(newUserId) : [];
+    unreadNotificationCount = newUserId ? loadBadge(newUserId) : 0;
+    activeChannels.forEach(ch => supabase.removeChannel(ch));
+    activeChannels = [];
+    activeSyncUsername = null;
+    activeSyncUserId = null;
+    notifyUpdates();
+};
 
 // ─── Exported Fetch Functions (callable from pages for on-demand refresh) ───
 export const refreshNotifications = async () => {
@@ -119,27 +133,22 @@ export const initGlobalNotificationSync = async (userId: string) => {
 
     // Guard: only subscribe once per username
     if (activeSyncUsername === username) return;
+
+    if (activeSyncUsername && activeSyncUsername !== username) {
+        clearGlobalNotificationCache(userId);
+    }
+
     activeSyncUsername = username;
     activeSyncUserId = userId;
 
-    // Save this userId as the last known user for instant pre-seeding on next refresh
-    try { localStorage.setItem(LAST_USER_KEY, userId); } catch {}
-
-    // If the pre-seeded cache was for a different user, clear it now and re-seed
-    if (_lastUserId && _lastUserId !== userId) {
-        cachedNotifications = [];
-        unreadNotificationCount = 0;
-        notifyUpdates();
-    } else if (cachedNotifications.length > 0) {
-        // Cache already pre-seeded correctly — just notify so components update
-        notifyUpdates();
-    }
+    // Cache already pre-seeded correctly — just notify so components update
+    notifyUpdates();
 
         // 2 & 3. Initial fetch — reuse the exported refreshNotifications
         await refreshNotifications();
 
         // 4. Supabase Realtime Bindings
-        supabase
+        const postgresChannel = supabase
             .channel(`global-notifications-${userId}`)
             .on(
                 'postgres_changes', 
@@ -187,8 +196,8 @@ export const initGlobalNotificationSync = async (userId: string) => {
             });
 
         // 5. High-Speed Broadcast Bindings (Bypasses RLS Replication Lag)
-        supabase
-            .channel('system_broadcasts')
+        const broadcastChannel = supabase
+            .channel(`system_broadcasts_${userId}`)
             .on(
                 'broadcast',
                 { event: 'notification_ping' },
@@ -200,6 +209,8 @@ export const initGlobalNotificationSync = async (userId: string) => {
                 }
             )
             .subscribe();
+
+        activeChannels.push(postgresChannel, broadcastChannel);
 };
 
 export const markNotificationAsRead = async (notificationId: string) => {

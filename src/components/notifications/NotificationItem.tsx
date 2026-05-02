@@ -262,14 +262,14 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notif, curre
                 
                 {isAllyCard ? (
                     isFollowingBack === null ? (
-                        <div className="w-24 h-8 rounded-full bg-zinc-800 animate-pulse" />
+                        <div className="w-20 md:w-24 h-7 md:h-8 rounded-full bg-zinc-800 animate-pulse" />
                     ) : (
                         <button
                             onClick={handleAllyBack}
                             onMouseEnter={() => setBtnHovered(true)}
                             onMouseLeave={() => setBtnHovered(false)}
                             disabled={followLoading}
-                            className={`px-5 py-2 rounded-full text-sm font-bold transition-all border ${
+                            className={`px-3 py-1.5 md:px-5 md:py-2 rounded-full text-[11px] md:text-sm font-bold transition-all border ${
                                 isFollowingBack
                                     ? btnHovered 
                                         ? 'bg-red-500/15 border-red-500/30 text-red-500' 
@@ -278,7 +278,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notif, curre
                             } disabled:opacity-50`}
                         >
                             {followLoading ? (
-                                <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                                <div className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4 border-2 border-current border-t-transparent rounded-full" />
                             ) : isFollowingBack ? (btnHovered ? 'Unally' : 'Alling') : 'Ally Back'}
                         </button>
                     )
@@ -288,7 +288,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notif, curre
                         onMouseEnter={() => setThanksHovered(true)}
                         onMouseLeave={() => setThanksHovered(false)}
                         disabled={thanksLoading}
-                        className={`px-5 py-2 rounded-full text-sm font-bold transition-all border flex items-center justify-center gap-2 min-w-[110px] ${
+                        className={`px-3 py-1.5 md:px-5 md:py-2 rounded-full text-[11px] md:text-sm font-bold transition-all border flex items-center justify-center gap-1.5 md:gap-2 min-w-[85px] md:min-w-[110px] ${
                             thanked
                                 ? thanksHovered
                                     ? 'bg-red-500/15 border-red-500/30 text-red-500 hover:bg-red-500/25'
@@ -297,7 +297,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notif, curre
                         } disabled:opacity-80`}
                     >
                         {thanksLoading ? (
-                            <div className="animate-spin h-4 w-4 border-2 border-indigo-400 border-t-transparent rounded-full" />
+                            <div className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4 border-2 border-indigo-400 border-t-transparent rounded-full" />
                         ) : thanked ? (
                             thanksHovered ? (
                                 'Un-Thank'

@@ -107,7 +107,7 @@ export const usePostActions = ({
         setIsLiked(newLikedState);
         setLikeCount(newLikeCount);
         onLikeUpdate?.(post.id, newLikedState, newLikeCount);
-        broadcastPostUpdate({ postId: post.id, action: newLikedState ? 'like' : 'unlike', data: { likes_count: newLikeCount } });
+        broadcastPostUpdate({ postId: post.id, action: newLikedState ? 'like' : 'unlike', userId: currentUser.id, data: { likes_count: newLikeCount } });
 
         try {
             if (newLikedState) {
@@ -133,7 +133,7 @@ export const usePostActions = ({
             const revertedCount = newLikedState ? likeCount : likeCount + 1;
             setLikeCount(revertedCount);
             onLikeUpdate?.(post.id, !newLikedState, revertedCount);
-            broadcastPostUpdate({ postId: post.id, action: !newLikedState ? 'like' : 'unlike', data: { likes_count: revertedCount } });
+            broadcastPostUpdate({ postId: post.id, action: !newLikedState ? 'like' : 'unlike', userId: currentUser.id, data: { likes_count: revertedCount } });
         }
     };
 
@@ -143,7 +143,7 @@ export const usePostActions = ({
         const newSavedState = !isSaved;
         setIsSaved(newSavedState);
         onSaveToggle?.(post, newSavedState);
-        broadcastPostUpdate({ postId: post.id, action: newSavedState ? 'save' : 'unsave' });
+        broadcastPostUpdate({ postId: post.id, action: newSavedState ? 'save' : 'unsave', userId: currentUser.id });
 
         try {
             if (newSavedState) {
@@ -183,7 +183,7 @@ export const usePostActions = ({
             if (error) throw error;
             setComments((prev: any[]) => [...prev, data]);
             setNewComment('');
-            broadcastPostUpdate({ postId: post.id, action: 'comment_add', data });
+            broadcastPostUpdate({ postId: post.id, action: 'comment_add', userId: currentUser.id, data });
         } catch (error) {
             console.error("Error posting comment:", error);
         } finally {
@@ -196,7 +196,7 @@ export const usePostActions = ({
             const { error } = await supabase.from('comments').delete().eq('id', commentId);
             if (error) throw error;
             setComments((prev: any[]) => prev.filter(c => c.id !== commentId));
-            broadcastPostUpdate({ postId: post.id, action: 'comment_delete', data: { comment_id: commentId } });
+            broadcastPostUpdate({ postId: post.id, action: 'comment_delete', userId: currentUser?.id, data: { comment_id: commentId } });
         } catch (error) {
             console.error("Error deleting comment:", error);
             alert("Failed to delete comment");
@@ -236,7 +236,7 @@ export const usePostActions = ({
             if (error) throw error;
 
             onDelete(post.id);
-            broadcastPostUpdate({ postId: post.id, action: 'delete' });
+            broadcastPostUpdate({ postId: post.id, action: 'delete', userId: currentUser?.id });
             onClose();
         } catch (error) {
             console.error("Error deleting post:", error);

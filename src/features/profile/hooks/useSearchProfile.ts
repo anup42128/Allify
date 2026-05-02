@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { broadcastNotificationPing } from '../../../lib/notificationStore';
+import { broadcastNotificationPing, broadcastFollowUpdate } from '../../../lib/notificationStore';
 import { subscribeToPostUpdates } from '../../../lib/postSyncStore';
 
 export const useSearchProfile = (username: string) => {
@@ -31,15 +31,15 @@ export const useSearchProfile = (username: string) => {
                 if (p.id !== payload.postId) return p;
                 const newP = { ...p };
                 if (payload.action === 'like') {
-                    newP.is_liked_by_me = true;
+                    if (payload.userId && currentUser && payload.userId === currentUser.id) newP.is_liked_by_me = true;
                     if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
                 } else if (payload.action === 'unlike') {
-                    newP.is_liked_by_me = false;
+                    if (payload.userId && currentUser && payload.userId === currentUser.id) newP.is_liked_by_me = false;
                     if (payload.data?.likes_count !== undefined) newP.likes_count = payload.data.likes_count;
                 } else if (payload.action === 'save') {
-                    newP.is_saved_by_me = true;
+                    if (payload.userId && currentUser && payload.userId === currentUser.id) newP.is_saved_by_me = true;
                 } else if (payload.action === 'unsave') {
-                    newP.is_saved_by_me = false;
+                    if (payload.userId && currentUser && payload.userId === currentUser.id) newP.is_saved_by_me = false;
                 }
                 return newP;
             }));
@@ -49,6 +49,32 @@ export const useSearchProfile = (username: string) => {
         });
         return () => { unsubscribe(); };
     }, []);
+
+    // Real-time follow count sync — re-fetches actual counts to handle concurrent follows
+    useEffect(() => {
+        if (!profile?.id) return;
+        const profileId = profile.id;
+        const channel = supabase
+            .channel(`follow-updates-${profileId}`)
+            .on('broadcast', { event: 'follow_update' }, async (msg) => {
+                const p = msg.payload;
+                if (p?.target_user_id !== profileId) return;
+                // Re-fetch real counts from DB to handle concurrent follows correctly
+                const [{ count: alliesCount }] = await Promise.all([
+                    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileId),
+                ]);
+                const { data: allingIds } = await supabase.from('follows').select('following_id').eq('follower_id', profileId);
+                const { count: alliedCount } = await supabase
+                    .from('follows')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('following_id', profileId)
+                    .in('follower_id', allingIds?.map((r: any) => r.following_id) ?? []);
+                if (alliesCount !== null) setLocalAllies(alliesCount);
+                if (alliedCount !== null) setLocalAllied(alliedCount);
+            })
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [profile?.id]);
 
     // Primary data fetch
     useEffect(() => {
@@ -191,6 +217,13 @@ export const useSearchProfile = (username: string) => {
                 setIsAllied(false);
                 setLocalAllies(prev => Math.max(prev - 1, 0));
                 if (wasAllied) setLocalAllied(prev => Math.max(prev - 1, 0));
+                broadcastNotificationPing(profile.username);
+                broadcastFollowUpdate(
+                    profile.id,
+                    'unfollow',
+                    Math.max(localAllies - 1, 0),
+                    wasAllied ? Math.max(localAllied - 1, 0) : localAllied
+                );
             } else {
                 const { data: currentProfile } = await supabase.from('profiles').select('username')
                     .eq('id', currentUser.id).single();
@@ -209,8 +242,14 @@ export const useSearchProfile = (username: string) => {
                 setIsAllied(nowMutual);
                 setLocalAllies(prev => prev + 1);
                 if (nowMutual) setLocalAllied(prev => prev + 1);
+                broadcastNotificationPing(profile.username);
+                broadcastFollowUpdate(
+                    profile.id,
+                    'follow',
+                    localAllies + 1,
+                    nowMutual ? localAllied + 1 : localAllied
+                );
             }
-            broadcastNotificationPing(profile.username);
         } catch (err) {
             console.error('Follow toggle error:', err);
         } finally {
