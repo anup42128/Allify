@@ -6,17 +6,27 @@ import { BackgroundGradient } from '../ui/BackgroundGradient';
 import { api } from '../../lib/api';
 import { useState, useEffect } from 'react';
 
+// Catch the prompt globally as early as possible so we never miss it on first load
+let globalDeferredPrompt: any = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    globalDeferredPrompt = e;
+});
+
 export const LandingPage = () => {
     const navigate = useNavigate();
     const { allowRoute } = useNavigation();
     
     // PWA State
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(globalDeferredPrompt);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(false);
-    const [showInstallBanner, setShowInstallBanner] = useState(true);
+    const [showInstallBanner, setShowInstallBanner] = useState(false);
 
     useEffect(() => {
+        // Delay showing the banner for 500ms for a smoother entry
+        const timer = setTimeout(() => setShowInstallBanner(true), 500);
+
         // Check if already installed
         const isStandaloneMatch = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
         setIsStandalone(isStandaloneMatch);
@@ -30,11 +40,20 @@ export const LandingPage = () => {
         // Listen for the standard install prompt
         const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault();
+            globalDeferredPrompt = e;
             setDeferredPrompt(e);
         };
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        // If the global caught it before component mounted, use it
+        if (globalDeferredPrompt && !deferredPrompt) {
+            setDeferredPrompt(globalDeferredPrompt);
+        }
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
     }, []);
 
     const handleInstallClick = async () => {
@@ -173,7 +192,7 @@ export const LandingPage = () => {
                         </button>
                         
                         <div className="flex items-center gap-4">
-                            <img src="/pwa-192x192.png" alt="Allify App" className="w-12 h-12 rounded-xl shadow-lg border border-zinc-700/50" />
+                            <img src="./pwa-192x192.png" alt="Allify App" className="w-12 h-12 rounded-xl shadow-lg border border-zinc-700/50" />
                             <div>
                                 <h4 className="text-white font-bold text-sm">Install Allify</h4>
                                 <p className="text-zinc-400 text-xs mt-0.5">For the best native experience</p>
