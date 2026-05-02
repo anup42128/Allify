@@ -47,7 +47,7 @@ export const ProfilePage = () => {
 
     return (
         <>
-            <div className="min-h-full flex flex-col pt-0 md:pt-16 md:px-10 max-w-5xl mx-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-20">
+            <div className="min-h-full flex flex-col pt-0 md:pt-16 md:px-10 max-w-5xl mx-auto pb-6 md:pb-20">
                 <ProfileHeader
                     profile={profile}
                     stats={stats}
