@@ -14,9 +14,9 @@ export const HomePage = () => {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-black relative w-full overflow-hidden">
+        <div className="flex flex-col h-full bg-black relative w-full overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
             {/* Mobile Header */}
-            <div className="md:hidden flex items-center justify-between px-5 pt-6 pb-4 border-b border-zinc-900 bg-black/80 backdrop-blur-md sticky top-0 z-50">
+            <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-zinc-900 bg-black/80 backdrop-blur-md sticky top-0 z-50">
                 <span className="text-white font-black text-2xl tracking-tighter">Allify</span>
                 <div className="flex gap-4">
                     <Link to="/notifications" className="relative group">
