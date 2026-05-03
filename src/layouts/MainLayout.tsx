@@ -52,7 +52,7 @@ export const MainLayout = () => {
     return (
         <>
             <SplashScreen isVisible={!isAppReady} />
-            <div className={`relative h-[100dvh] w-full md:h-screen md:w-screen bg-black overflow-hidden flex font-sans pt-[max(env(safe-area-inset-top),16px)] md:pt-0 ${!isAppReady ? 'opacity-0' : 'opacity-100'}`}>
+            <div className={`relative h-[100dvh] w-full md:h-screen md:w-screen bg-black overflow-hidden flex font-sans pt-[env(safe-area-inset-top)] md:pt-0 ${!isAppReady ? 'opacity-0' : 'opacity-100'}`}>
                 {/* Fixed Navigation */}
                 <Sidebar />
 

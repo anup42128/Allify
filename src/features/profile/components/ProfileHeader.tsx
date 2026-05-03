@@ -116,7 +116,7 @@ export const ProfileHeader = ({ profile, stats, onAvatarClick, setProfile }: Pro
             {/* ─── MOBILE-ONLY: Premium Identity Layout ─── */}
             <div className="md:hidden relative overflow-hidden">
                 {/* Top section: avatar + name + mini stats */}
-                <div className="flex items-start gap-4 px-4 pt-5 pb-4 relative z-10">
+                <div className="flex items-start gap-4 px-4 pt-3 pb-4 relative z-10">
                     {/* Avatar with glow ring */}
                     <div className="relative flex-shrink-0">
                         <div className="absolute -inset-[3px] rounded-full bg-gradient-to-br from-indigo-500/50 via-purple-500/20 to-transparent blur-[6px]" />

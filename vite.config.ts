@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'Allify',
         short_name: 'Allify',
         description: 'Connect with your allies',
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#010101',
+        background_color: '#010101',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
