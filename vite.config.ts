@@ -16,7 +16,7 @@ export default defineConfig({
         description: 'Connect with your allies',
         theme_color: '#010101',
         background_color: '#010101',
-        display: 'standalone',
+        display: 'fullscreen',
         orientation: 'portrait',
         icons: [
           {
