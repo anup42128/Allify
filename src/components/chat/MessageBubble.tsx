@@ -75,9 +75,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             // Get the unscaled physical width of the popover
             const popoverWidth = ref.current.offsetWidth;
             
-            // Since all popovers are anchored `right-0`, their final right edge is the parent's right edge
-            const finalRightEdge = parentRect.right;
-            const finalLeftEdge = finalRightEdge - popoverWidth;
+            let finalLeftEdge, finalRightEdge;
+            if (ref.current.classList.contains('left-0')) {
+                finalLeftEdge = parentRect.left;
+                finalRightEdge = finalLeftEdge + popoverWidth;
+            } else {
+                finalRightEdge = parentRect.right;
+                finalLeftEdge = finalRightEdge - popoverWidth;
+            }
             
             // 24px safety padding from screen edges
             if (finalLeftEdge < 24) {
@@ -92,13 +97,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 ref.current.style.marginLeft = `-${moveLeft}px`;
             }
         };
+        const runCheck = () => {
+            if (unsendMsgId === msg.id) {
+                checkEdges(actionPopoverRef);
+            }
+            if (activeReactMsg === msg.id) {
+                checkEdges(emojiPopoverRef);
+            }
+        };
 
-        if (unsendMsgId === msg.id) {
-            checkEdges(actionPopoverRef);
-        }
-        if (activeReactMsg === msg.id) {
-            checkEdges(emojiPopoverRef);
-        }
+        // Run immediately, then again after a slight delay to ensure the animation hasn't messed with dimensions
+        runCheck();
+        const timeout = setTimeout(runCheck, 50);
+        return () => clearTimeout(timeout);
     }, [unsendMsgId, activeReactMsg, msg.id]);
 
 
@@ -211,13 +222,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9, y: 6 }}
                                             transition={{ duration: 0.15, ease: "easeOut" }}
-                                            className="absolute bottom-full mb-3 right-0 z-[60] flex items-center gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
+                                            className="absolute bottom-full mb-3 right-0 z-[60] flex items-center gap-1.5 md:gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
                                         >
                                             {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => (
                                                 <button
                                                     key={emoji}
                                                     onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
-                                                    className={`text-[26px] leading-none w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
+                                                    className={`text-[22px] md:text-[26px] leading-none w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
                                                             ? 'bg-zinc-800 ring-2 ring-purple-500 scale-[1.10] shadow-lg shadow-purple-500/20'
                                                             : ''
                                                         }`}
@@ -225,12 +236,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                                     {emoji}
                                                 </button>
                                             ))}
-                                            <div className="w-px h-7 bg-zinc-700 mx-1"></div>
+                                            <div className="w-px h-6 md:h-7 bg-zinc-700 mx-0.5 md:mx-1"></div>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }}
-                                                className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors"
+                                                className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors"
                                             >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4.5 h-4.5 md:w-5 md:h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                         </motion.div>
                                     )}
@@ -368,18 +379,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                 <AnimatePresence>
                                     {activeReactMsg === msg.id && (
                                         <motion.div
+                                            ref={emojiPopoverRef}
                                             onClick={(e) => e.stopPropagation()}
-                                            initial={{ opacity: 0, scale: 0.9, y: 6 }}
+                                            initial={{ opacity: 0, scale: 0.9, y: 6, originX: 0, originY: 1 }}
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9, y: 6 }}
                                             transition={{ duration: 0.15, ease: "easeOut" }}
-                                            className="absolute bottom-full mb-3 right-0 z-[60] flex items-center gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
+                                            className="absolute bottom-full mb-3 left-0 z-[60] flex items-center gap-1.5 md:gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
                                         >
                                             {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => (
                                                 <button
                                                     key={emoji}
                                                     onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
-                                                    className={`text-[26px] leading-none w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
+                                                    className={`text-[22px] md:text-[26px] leading-none w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
                                                             ? 'bg-zinc-800 ring-2 ring-purple-500 scale-[1.10] shadow-lg shadow-purple-500/20'
                                                             : ''
                                                         }`}
@@ -387,9 +399,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                                     {emoji}
                                                 </button>
                                             ))}
-                                            <div className="w-px h-7 bg-zinc-700 mx-1"></div>
-                                            <button onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }} className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            <div className="w-px h-6 md:h-7 bg-zinc-700 mx-0.5 md:mx-1"></div>
+                                            <button onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4.5 h-4.5 md:w-5 md:h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                         </motion.div>
                                     )}
@@ -399,11 +411,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                 <AnimatePresence>
                                     {unsendMsgId === msg.id && (
                                         <motion.div
+                                            ref={actionPopoverRef}
                                             onClick={(e) => e.stopPropagation()}
-                                            initial={{ opacity: 0, scale: 0.9, y: 10, originX: 1, originY: 1 }}
+                                            initial={{ opacity: 0, scale: 0.9, y: 10, originX: 0, originY: 1 }}
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                            className="absolute bottom-full mb-2 right-0 flex flex-col p-1.5 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl z-50 backdrop-blur-xl w-40"
+                                            className="absolute bottom-full mb-2 left-0 flex flex-col p-1.5 bg-zinc-900 border border-zinc-700/60 rounded-xl shadow-2xl z-50 backdrop-blur-xl w-40"
                                         >
                                             <div className="flex items-center justify-center w-full px-3 pt-1 pb-2 text-[11px] font-bold tracking-widest text-zinc-500 uppercase">
                                                 {formatMessageTime(msg.created_at)}

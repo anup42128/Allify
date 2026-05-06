@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getCachedConversations, cachedMessages, subscribeToChatUpdates, fetchGlobalConversations, updateCachedConversationsSilently } from '../lib/chatStore';
+import { getCachedConversations, cachedMessages, cachedForUserId, subscribeToChatUpdates, fetchGlobalConversations, updateCachedConversationsSilently } from '../lib/chatStore';
 import { initGlobalPresenceSync } from '../lib/presenceStore';
 import { useChatScroll } from './useChatScroll';
 import { useChatRealtime } from './useChatRealtime';
@@ -50,7 +50,7 @@ export function useChatManager() {
     const [activeReplyMsg, setActiveReplyMsg] = useState<Message | null>(null);
     const [activeReactMsg, setActiveReactMsg] = useState<string | null>(null);
 
-    const startChatHandledRef = useRef(false);
+    const startChatHandledRef = useRef<string | false>(false);
 
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isSendingTypingRef = useRef(false);
@@ -122,13 +122,25 @@ export function useChatManager() {
     }, [navigate]);
 
     useEffect(() => {
-        if (currentUser?.id) fetchConversations(currentUser.id);
+        if (currentUser?.id) {
+            // If the pre-loaded cache was read for a different user (e.g. two tabs
+            // sharing localStorage), clear it immediately so stale conversations
+            // never flash in the sidebar before the correct fetch arrives.
+            if (cachedForUserId && cachedForUserId !== currentUser.id) {
+                setConversations([]);
+                setIsLoadingConvs(true);
+            }
+            fetchConversations(currentUser.id);
+        }
     }, [currentUser, fetchConversations]);
 
     useEffect(() => {
         const startWith = location.state?.startChatWith;
-        if (!startWith || !currentUser?.id || startChatHandledRef.current) return;
-        startChatHandledRef.current = true;
+        if (!startWith || !currentUser?.id) return;
+
+        // Guard against double-firing for the same target user
+        if (startChatHandledRef.current === startWith.id) return;
+        startChatHandledRef.current = startWith.id;
 
         // Immediately clear the navigation state so navigating away & back doesn't re-trigger this flow
         navigate(location.pathname, { replace: true, state: {} });
@@ -136,7 +148,7 @@ export function useChatManager() {
         const openOrCreate = async () => {
             try {
                 setIsOpeningChat(true);
-                const { data: convId, error } = await supabase.rpc('find_or_create_conversation', {
+                const { data: rpcConvId, error } = await supabase.rpc('find_or_create_conversation', {
                     user_a: currentUser.id,
                     user_b: startWith.id,
                 });
@@ -150,17 +162,26 @@ export function useChatManager() {
 
                 await fetchConversations(currentUser.id);
 
+                // Find the correct conversation from the freshly-loaded cache by the
+                // other user's ID — this guarantees we open the existing conversation
+                // with all its messages, not a newly-created empty duplicate.
+                const freshConvs = getCachedConversations() || [];
+                const matchedConv = freshConvs.find(c => c.other_user?.id === startWith.id);
+                const convId = matchedConv?.id ?? rpcConvId;
+
                 if (!activeConvIdRef.current) {
                     window.history.pushState({ chatOpen: true }, '');
                 }
                 setActiveConvId(convId);
-                setActiveConvUser({
-                    id: startWith.id,
-                    username: startWith.username,
-                    full_name: startWith.full_name,
-                    avatar_url: startWith.avatar_url,
-                    ...(fullProfile?.last_seen ? { last_seen: fullProfile.last_seen } : {}),
-                } as Participant);
+                setActiveConvUser(
+                    matchedConv?.other_user ?? ({
+                        id: startWith.id,
+                        username: startWith.username,
+                        full_name: startWith.full_name,
+                        avatar_url: startWith.avatar_url,
+                        ...(fullProfile?.last_seen ? { last_seen: fullProfile.last_seen } : {}),
+                    } as Participant)
+                );
             } catch (err) {
                 console.error('Error opening chat:', err);
                 startChatHandledRef.current = false;
@@ -224,6 +245,22 @@ export function useChatManager() {
             setIsLoadingMessages(false);
         }
     }, [currentUser, scrollToBottom]);
+
+    // Auto-scroll to show typing indicator when the other person starts typing,
+    // but only if the user is already near the bottom (within 200px).
+    useEffect(() => {
+        if (!isTyping) return;
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distanceFromBottom < 200) {
+            // First scroll: starts moving immediately
+            scrollToBottom('smooth');
+            // Second scroll: fires after Framer Motion's height:0→auto animation (150ms)
+            // so the container has its full height and we land at the very bottom.
+            setTimeout(() => scrollToBottom('smooth'), 200);
+        }
+    }, [isTyping, scrollToBottom, scrollContainerRef]);
 
     useEffect(() => {
         const onVisibilityChange = () => {
@@ -291,7 +328,7 @@ export function useChatManager() {
 
     const handleStartNewChat = async (user: Participant) => {
         if (!currentUser?.id) return;
-        const { data: convId, error } = await supabase.rpc('find_or_create_conversation', {
+        const { data: rpcConvId, error } = await supabase.rpc('find_or_create_conversation', {
             user_a: currentUser.id,
             user_b: user.id,
         });
@@ -301,11 +338,26 @@ export function useChatManager() {
         }
 
         await fetchConversations(currentUser.id);
+
+        // Find the correct conversation from the freshly-loaded cache by the
+        // other user's ID — this guarantees we open the existing conversation
+        // with all its messages, not a newly-created empty duplicate.
+        const freshConvs = getCachedConversations() || [];
+        const matchedConv = freshConvs.find(c => c.other_user?.id === user.id);
+        const convId = matchedConv?.id ?? rpcConvId;
+
         if (!activeConvIdRef.current) {
             window.history.pushState({ chatOpen: true }, '');
         }
         setActiveConvId(convId);
-        setActiveConvUser(user);
+        setActiveConvUser(
+            matchedConv?.other_user ?? ({
+                id: user.id,
+                username: user.username,
+                full_name: user.full_name,
+                avatar_url: user.avatar_url,
+            } as Participant)
+        );
     };
 
     const groupedMessages = messages.reduce<{ date: string; msgs: Message[] }[]>((groups, msg) => {

@@ -150,7 +150,7 @@ export const MessageInputArea = ({
     return (
         <div className="px-2 md:px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:pb-3 pt-2 flex-shrink-0 bg-black flex flex-col relative w-full">
             {/* -- UNIFIED INPUT & REPLY CONTAINER -- */}
-            <div className="flex flex-col bg-zinc-900 rounded-[20px] md:rounded-[24px] border border-zinc-800/60 focus-within:border-zinc-500 transition-colors shadow-inner relative z-20 overflow-hidden">
+            <div className="flex flex-col bg-zinc-900 rounded-[20px] md:rounded-[24px] border border-zinc-800/60 focus-within:border-indigo-500 md:focus-within:border-indigo-400 md:focus-within:ring-1 md:focus-within:ring-indigo-400 transition-all shadow-inner relative z-20 overflow-hidden">
                 <AnimatePresence>
                     {activeReplyMsg && (
                         <motion.div

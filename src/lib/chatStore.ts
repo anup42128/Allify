@@ -32,6 +32,7 @@ const persistCache = (c: Conversation[], userId: string | null) => {
 
 // ─── Global State Variables ────────────────────────────────────────────────────────
 export let activeSyncUserId: string | null = null;
+export let cachedForUserId = _currentSessionUserId;  // exposed and mutable so components can validate stale cache
 export let cachedConversations: Conversation[] | null = _currentSessionUserId ? loadCache(_currentSessionUserId) : null;
 export const cachedMessages = new Map<string, Message[]>();
 
@@ -48,15 +49,23 @@ export const notifyChatUpdates = () => {
     listeners.forEach(l => l());
 };
 
-export const setCachedConversations = (c: Conversation[]) => {
+export const setCachedConversations = (c: Conversation[], userId?: string) => {
     cachedConversations = c;
-    persistCache(c, activeSyncUserId || _currentSessionUserId);
+    const targetUserId = userId || activeSyncUserId || _currentSessionUserId;
+    if (targetUserId) {
+        cachedForUserId = targetUserId;
+        persistCache(c, targetUserId);
+    }
     notifyChatUpdates();
 };
 
-export const updateCachedConversationsSilently = (c: Conversation[]) => {
+export const updateCachedConversationsSilently = (c: Conversation[], userId?: string) => {
     cachedConversations = c;
-    persistCache(c, activeSyncUserId || _currentSessionUserId);
+    const targetUserId = userId || activeSyncUserId || _currentSessionUserId;
+    if (targetUserId) {
+        cachedForUserId = targetUserId;
+        persistCache(c, targetUserId);
+    }
 };
 
 export const getCachedConversations = () => cachedConversations;
@@ -71,7 +80,7 @@ export const fetchGlobalConversations = async (userId: string) => {
             .eq('user_id', userId);
 
         if (!participantRows || participantRows.length === 0) {
-            setCachedConversations([]);
+            setCachedConversations([], userId);
             return;
         }
 
@@ -84,7 +93,7 @@ export const fetchGlobalConversations = async (userId: string) => {
             .order('last_message_time', { ascending: false, nullsFirst: false });
 
         if (!convData || convData.length === 0) {
-            setCachedConversations([]);
+            setCachedConversations([], userId);
             return;
         }
 
@@ -146,7 +155,7 @@ export const fetchGlobalConversations = async (userId: string) => {
         const finalConvs = [...seen.values()].filter(c =>
             (c.last_message && c.last_message.trim() !== '') || c.initiated_by === userId
         );
-        setCachedConversations(finalConvs);
+        setCachedConversations(finalConvs, userId);
     } catch (e) {
         console.error('Error in global fetch:', e);
     }
