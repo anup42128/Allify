@@ -278,8 +278,8 @@ export const BirthdayPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
-                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0 flex flex-col items-center">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+                    <div className="w-full max-w-md z-10 relative mt-10 md:mt-0 flex flex-col items-center">
                         <button
                             onClick={(e) => { e.stopPropagation(); navigate('/auth/signup'); }}
                             className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
@@ -294,7 +294,7 @@ export const BirthdayPage = () => {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
-                            className="mb-8 md:mb-12 mt-4 md:mt-12"
+                            className="mb-6 md:mb-8 mt-4 md:mt-8"
                         >
                             {/* Birthday Cake SVG - Robust Icon */}
                             <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
@@ -317,9 +317,9 @@ export const BirthdayPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                            className="w-full space-y-6 md:space-y-8"
+                            className="w-full space-y-4 md:space-y-6"
                         >
-                            <div className="text-center mb-8 md:mb-10">
+                            <div className="text-center mb-6 md:mb-8">
                                 <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">When is your birthday?</h2>
                                 <p className="text-gray-400 text-[13px] md:text-sm mb-1">You won't be able to change this later.</p>
                                 <p className="text-gray-400 text-[11px] md:text-xs mt-1">Your birthday won't be shared publicly until you want.</p>
@@ -383,7 +383,7 @@ export const BirthdayPage = () => {
                             <button
                                 onClick={handleContinue}
                                 disabled={isLoading || !isFormValid}
-                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6 md:mt-0"
+                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-0"
                             >
                                 {isLoading ? (
                                     <>
@@ -398,8 +398,8 @@ export const BirthdayPage = () => {
                                 )}
                             </button>
 
-                            <div className="about-me text-center mt-6 md:mt-8">
-                                <p className="text-[10px] text-gray-600">Allify © 2025</p>
+                            <div className="about-me text-center mt-6 md:mt-6">
+                                <p className="text-[10px] text-gray-600">Allify © 2026</p>
                             </div>
 
                         </motion.div>

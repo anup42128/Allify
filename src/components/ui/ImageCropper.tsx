@@ -130,9 +130,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex flex-col pt-16 px-4"
+            className="fixed inset-0 z-[100] bg-black flex flex-col pt-12 md:pt-16 px-0 md:px-4"
         >
-            <div className="relative flex-1 bg-zinc-950 rounded-[2rem] overflow-hidden border border-zinc-800">
+            <div className="relative flex-1 bg-zinc-950 rounded-none md:rounded-[2rem] overflow-hidden border-0 md:border border-zinc-800">
                 <Cropper
                     image={!isVideo ? image : undefined}
                     video={isVideo ? image : undefined}
@@ -147,19 +147,19 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
                 />
             </div>
 
-            <div className="p-10 flex flex-col items-center gap-8">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-10 flex flex-col items-center gap-6 md:gap-8">
                 {/* Aspect Ratio Selector */}
                 {showAspectSelector && (
-                    <div className="flex gap-4 p-1 bg-zinc-900 rounded-full border border-zinc-800">
+                    <div className="flex gap-2 md:gap-4 p-1 bg-zinc-900 rounded-full border border-zinc-800">
                         <button
                             onClick={() => setCurrentAspect(1)}
-                            className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 1 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            className={`px-4 md:px-6 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold tracking-widest transition-all ${currentAspect === 1 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
                         >
                             1:1
                         </button>
                         <button
                             onClick={() => setCurrentAspect(4 / 5)}
-                            className={`px-6 py-2 rounded-full text-xs font-bold tracking-widest transition-all ${currentAspect === 4 / 5 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            className={`px-4 md:px-6 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold tracking-widest transition-all ${currentAspect === 4 / 5 ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
                         >
                             4:5
                         </button>
@@ -179,16 +179,16 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
                     />
                 </div>
 
-                <div className="flex gap-4 w-full max-w-md">
+                <div className="flex gap-3 md:gap-4 w-full max-w-md px-4 md:px-0 mt-2 md:mt-0">
                     <button
                         onClick={onCancel}
-                        className="flex-1 py-4 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-sm tracking-widest hover:bg-zinc-800 transition-colors uppercase"
+                        className="flex-1 py-3 md:py-4 rounded-full bg-zinc-900 border border-zinc-800 text-white font-bold text-xs md:text-sm tracking-widest hover:bg-zinc-800 transition-colors uppercase"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleDone}
-                        className="flex-1 py-4 rounded-full bg-white text-black font-bold text-sm tracking-widest hover:bg-zinc-200 transition-colors uppercase"
+                        className="flex-1 py-3 md:py-4 rounded-full bg-white text-black font-bold text-xs md:text-sm tracking-widest hover:bg-zinc-200 transition-colors uppercase"
                     >
                         Done
                     </button>

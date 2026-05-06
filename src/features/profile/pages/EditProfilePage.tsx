@@ -261,27 +261,27 @@ export const EditProfilePage = () => {
                     className="bg-black md:bg-zinc-900/50 md:border border-zinc-800 md:rounded-[2.5rem] overflow-hidden md:shadow-2xl flex flex-col min-h-full md:min-h-0"
                 >
                     {/* Header */}
-                    <div className="p-5 md:p-8 border-b border-zinc-800 flex items-center justify-between md:bg-zinc-900/50 sticky top-0 bg-black/80 backdrop-blur-xl z-20">
+                    <div className="p-4 md:p-8 border-b border-zinc-800 flex items-center justify-between md:bg-zinc-900/50 sticky top-0 bg-black/80 backdrop-blur-xl z-20">
                         <div>
                             <h2 className="text-white text-2xl md:text-3xl font-bold tracking-tight">Edit Profile</h2>
                             <p className="text-zinc-500 text-xs md:text-sm mt-1 font-medium">Customize your Allify presence</p>
                         </div>
                         <button
                             onClick={() => navigate('/profile')}
-                            className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                            className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 md:w-6 md:h-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
 
                     {/* Content */}
-                    <div className="p-5 md:p-8 space-y-8 md:space-y-12">
+                    <div className="p-4 md:p-8 space-y-6 md:space-y-12">
                         {/* Avatar Section */}
                         <div className="flex flex-col items-center">
                             <div onClick={handleAvatarClick} className="relative group cursor-pointer">
-                                <div className="w-32 h-32 rounded-full bg-zinc-800 border-2 border-zinc-700 overflow-hidden relative">
+                                <div className="w-28 h-28 md:w-32 md:h-32 rounded-full bg-zinc-800 border-2 border-zinc-700 overflow-hidden relative">
                                     {profile?.avatar_url ? (
                                         <img src={profile.avatar_url} className="w-full h-full object-cover" />
                                     ) : (
@@ -301,7 +301,7 @@ export const EditProfilePage = () => {
                             </div>
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
-                            <div className="mt-5 flex gap-4">
+                            <div className="mt-4 md:mt-5 flex gap-3 md:gap-4">
                                 {profile?.avatar_url && (
                                     <button onClick={handleRemoveAvatar} className="px-5 py-2.5 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-500/20 transition-colors">Remove</button>
                                 )}
@@ -320,7 +320,7 @@ export const EditProfilePage = () => {
                                             type="text"
                                             value={editFormData.username}
                                             onChange={handleUsernameChange}
-                                            className={`w-full bg-zinc-950 border ${editErrors.username ? 'border-red-500' : 'border-zinc-800 focus:border-white'} rounded-2xl pl-10 pr-12 py-3 md:py-4 text-white outline-none transition-all`}
+                                            className={`w-full bg-zinc-950 border ${editErrors.username ? 'border-red-500' : 'border-zinc-800 focus:border-white'} rounded-xl md:rounded-2xl pl-10 pr-10 py-2.5 md:py-4 text-white outline-none transition-all`}
                                         />
                                         {isCheckingUsername && <div className="absolute right-5 top-1/2 -translate-y-1/2 animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />}
                                     </div>
@@ -328,7 +328,7 @@ export const EditProfilePage = () => {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-zinc-500 text-[10px] font-black uppercase tracking-widest ml-1">Full Name</label>
-                                    <input type="text" value={editFormData.full_name} disabled className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 md:py-4 text-zinc-600 opacity-50 cursor-not-allowed" />
+                                    <input type="text" value={editFormData.full_name} disabled className="w-full bg-zinc-950 border border-zinc-800 rounded-xl md:rounded-2xl px-4 md:px-5 py-2.5 md:py-4 text-zinc-600 opacity-50 cursor-not-allowed" />
                                 </div>
                             </div>
 
@@ -340,7 +340,7 @@ export const EditProfilePage = () => {
                                 <textarea
                                     value={editFormData.bio}
                                     onChange={(e) => setEditFormData(prev => ({ ...prev, bio: e.target.value }))}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 text-white h-32 resize-none focus:border-white transition-all outline-none placeholder:text-zinc-700"
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl md:rounded-2xl px-4 md:px-5 py-3 md:py-4 text-white h-24 md:h-32 resize-none focus:border-white transition-all outline-none placeholder:text-zinc-700"
                                     maxLength={150}
                                     placeholder={"Hi! I'm using Allify to expand my horizons, share my journey, and connect with a community that inspires... 🌌✨"}
                                 />
@@ -357,7 +357,7 @@ export const EditProfilePage = () => {
                                         type="text"
                                         value={editFormData.location}
                                         onChange={(e) => setEditFormData(prev => ({ ...prev, location: e.target.value }))}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 md:py-4 text-white focus:border-white transition-all outline-none"
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl md:rounded-2xl px-4 md:px-5 py-2.5 md:py-4 text-white focus:border-white transition-all outline-none"
                                         maxLength={30}
                                     />
                                     <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Location will be visible to other users.</p>
@@ -371,7 +371,7 @@ export const EditProfilePage = () => {
                                         type="text"
                                         value={editFormData.website}
                                         onChange={(e) => setEditFormData(prev => ({ ...prev, website: e.target.value }))}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 md:py-4 text-white focus:border-white transition-all outline-none"
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl md:rounded-2xl px-4 md:px-5 py-2.5 md:py-4 text-white focus:border-white transition-all outline-none"
                                         maxLength={50}
                                     />
                                     <p className="text-zinc-600 text-[10px] font-bold ml-1 mt-1">Website will be visible to other users.</p>
@@ -384,7 +384,7 @@ export const EditProfilePage = () => {
                                     <div className="w-1 h-6 bg-zinc-600 rounded-full"></div>
                                     <h3 className="text-zinc-500 font-black tracking-[0.2em] text-[10px] uppercase">Earned Achievements</h3>
                                 </div>
-                                <div className="bg-zinc-950/50 border border-zinc-800 rounded-3xl p-5 md:p-6">
+                                <div className="bg-zinc-950/50 border border-zinc-800 rounded-[20px] md:rounded-3xl p-4 md:p-6">
                                     {profile?.badges && profile.badges.length > 0 ? (
                                         <div className="flex flex-wrap gap-4">
                                             {profile.badges.map(id => {
@@ -407,12 +407,12 @@ export const EditProfilePage = () => {
                     </div>
 
                     {/* Footer */}
-                    <div className="p-5 md:p-8 border-t border-zinc-800 md:bg-zinc-900/50 flex gap-3 md:gap-4 mt-auto">
-                        <button onClick={() => navigate('/profile')} className="flex-1 py-3 md:py-4 bg-zinc-800 rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Discard</button>
+                    <div className="p-4 md:p-8 border-t border-zinc-800 md:bg-zinc-900/50 flex gap-2 md:gap-4 mt-auto">
+                        <button onClick={() => navigate('/profile')} className="flex-1 py-2.5 md:py-4 bg-zinc-800 rounded-[14px] md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Discard</button>
                         <button
                             onClick={handleSaveChanges}
                             disabled={!!editErrors.username || isCheckingUsername || isUploading}
-                            className="flex-[1.5] md:flex-1 py-3 md:py-4 bg-white text-black rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-xl"
+                            className="flex-[1.5] md:flex-1 py-2.5 md:py-4 bg-white text-black rounded-[14px] md:rounded-2xl text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-xl"
                         >
                             {isUploading ? 'Saving...' : 'Save Changes'}
                         </button>

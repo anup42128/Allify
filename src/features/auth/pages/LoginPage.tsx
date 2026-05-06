@@ -95,8 +95,8 @@ export const LoginPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
-                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+                    <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         {/* Back Button */}
                         <button
                             onClick={() => navigate('/')}
@@ -112,25 +112,25 @@ export const LoginPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="space-y-6 md:space-y-6 mt-4 md:mt-12"
+                            className="space-y-4 md:space-y-4 mt-4 md:mt-12"
                         >
                             {/* Header Section */}
-                            <div className="text-center space-y-1 md:space-y-2 mb-8">
+                            <div className="text-center space-y-1 md:space-y-1 mb-6 md:mb-6">
                                 <motion.h1
                                     initial={{ scale: 0.9 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5 }}
-                                    className="text-5xl md:text-6xl font-black tracking-tighter text-white drop-shadow-3xl mb-2 md:mb-4 leading-none"
+                                    className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-3xl mb-1 md:mb-2 leading-none"
                                 >
                                     Allify
                                 </motion.h1>
-                                <h2 className="text-xl md:text-2xl font-bold text-gray-200 tracking-tight">Welcome back</h2>
+                                <h2 className="text-xl md:text-xl font-bold text-gray-200 tracking-tight">Welcome back</h2>
                                 <p className="text-zinc-500 md:text-gray-400 text-[13px] md:text-sm max-w-xs mx-auto font-medium md:font-normal">
                                     Enter your credentials to continue your journey.
                                 </p>
                             </div>
 
-                            <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-5">
+                            <form autoComplete="off" onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4 md:space-y-4">
                                 {/* Email or Username */}
                                 <div className="relative group">
                                     <input
@@ -201,7 +201,7 @@ export const LoginPage = () => {
                                 <button
                                     type="submit"
                                     disabled={isLoading || !isFormValid}
-                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6 md:mt-6"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-4"
                                 >
                                     {isLoading ? (
                                         <>
@@ -226,7 +226,7 @@ export const LoginPage = () => {
                                 </form>
 
                             {/* Divider and Footer Links */}
-                            <div className="space-y-6 pt-2">
+                            <div className="space-y-4 md:space-y-4 pt-2">
                                 <div className="relative flex py-2 items-center">
                                     <div className="flex-grow border-t border-white/10"></div>
                                     <span className="flex-shrink-0 mx-4 text-gray-500 text-xs">or</span>
@@ -247,7 +247,7 @@ export const LoginPage = () => {
                             </div>
 
                             {/* Security Footer */}
-                            <div className="pt-8 pb-4 text-center">
+                            <div className="pt-6 pb-2 md:pt-6 md:pb-2 text-center">
                                 <p className="text-[10px] md:text-xs text-gray-500/70 font-medium tracking-wide">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 inline-block mr-1.5 -mt-0.5 text-indigo-500/70">
                                         <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />

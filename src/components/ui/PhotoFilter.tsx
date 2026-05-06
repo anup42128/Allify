@@ -75,51 +75,51 @@ const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="flex flex-col h-full max-w-4xl mx-auto w-full pb-8 pt-6 px-4"
+            className="flex flex-col h-full max-w-4xl mx-auto w-full pb-4 md:pb-8 pt-4 md:pt-6 px-2 md:px-4"
         >
             {/* Header */}
-            <div className="flex justify-between items-center mb-6 relative">
-                {/* Left side: Back Button */}
-                <div className="flex-1 flex justify-start">
+            <div className="flex justify-between items-center mb-4 md:mb-6 relative">
+                {/* Left side: Back Button & Cancel Button */}
+                <div className="flex-1 flex justify-start items-center gap-1 md:gap-3">
                     <button
                         onClick={onBack}
-                        className="flex justify-center items-center w-12 h-12 bg-zinc-900 rounded-full hover:bg-zinc-800 transition text-white"
+                        className="flex justify-center items-center w-10 h-10 md:w-12 md:h-12 bg-zinc-900 rounded-full hover:bg-zinc-800 transition text-white"
                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 md:w-6 md:h-6">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => setShowCancelModal(true)}
+                        className="p-2 md:p-3 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                        title="Discard Post"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 md:w-6 md:h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
                 {/* Center: Title */}
-                <h2 className="text-xl font-bold absolute left-1/2 -translate-x-1/2">Apply Filter</h2>
+                <h2 className="text-base sm:text-lg md:text-xl font-bold absolute left-1/2 -translate-x-1/2 whitespace-nowrap">Apply Filter</h2>
 
-                {/* Right side: Cancel & Next Buttons */}
-                <div className="flex-1 flex justify-end items-center gap-3">
-                    <button
-                        onClick={() => setShowCancelModal(true)}
-                        className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
-                        title="Discard Post"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                {/* Right side: Next Button */}
+                <div className="flex-1 flex justify-end items-center">
                     <button
                         onClick={handleApplyFilter}
                         disabled={isApplying}
-                        className="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition disabled:opacity-50"
+                        className="px-4 md:px-6 py-1.5 md:py-2 text-sm md:text-base bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition disabled:opacity-50"
                     >
-                        {isApplying ? 'Processing...' : 'Next'}
+                        {isApplying ? 'Process...' : 'Next'}
                     </button>
                 </div>
             </div>
 
             {/* Main body — preview + filter grid side by side from top */}
-            <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0 items-start">
+            <div className="flex flex-col md:flex-row gap-4 md:gap-6 flex-1 min-h-0 items-start">
 
                 {/* Preview */}
-                <div className="flex-1 bg-zinc-900/50 rounded-[2rem] border border-zinc-800 shadow-2xl overflow-hidden flex items-center justify-center min-h-[260px]">
+                <div className="flex-1 w-full bg-zinc-900/50 rounded-3xl md:rounded-[2rem] border border-zinc-800 shadow-2xl overflow-hidden flex items-center justify-center min-h-[220px] md:min-h-[260px]">
                     {imageUrl && (
                         <img
                             src={imageUrl}
@@ -132,8 +132,8 @@ const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack
                 </div>
 
                 {/* Filter Grid — 4 columns, 2 rows, no scroll */}
-                <div className="md:w-[380px] flex items-start justify-center pt-2">
-                    <div className="grid grid-cols-4 gap-8">
+                <div className="w-full md:w-[380px] flex items-start justify-center pt-2">
+                    <div className="grid grid-cols-4 gap-3 sm:gap-4 md:gap-8">
                         {FILTERS.map((f) => (
                             <button
                                 key={f.id}
@@ -141,7 +141,7 @@ const PhotoFilter: React.FC<PhotoFilterProps> = ({ imageBlob, onComplete, onBack
                                 className="flex flex-col items-center gap-2 group outline-none"
                             >
                                 <div
-                                    className={`relative w-20 h-20 rounded-full overflow-hidden transition-all duration-300
+                                    className={`relative w-[15vw] max-w-[64px] h-[15vw] max-h-[64px] md:w-20 md:h-20 rounded-full overflow-hidden transition-all duration-300
                                         ${selectedFilter.id === f.id
                                             ? 'ring-2 ring-white ring-offset-3 ring-offset-black scale-110 shadow-[0_0_18px_rgba(255,255,255,0.15)]'
                                             : 'opacity-55 group-hover:opacity-100 group-hover:scale-105 border border-zinc-700/60'

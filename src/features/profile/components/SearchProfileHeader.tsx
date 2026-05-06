@@ -40,9 +40,9 @@ export const SearchProfileHeader = ({
     return (
         <>
             {/* ─── MOBILE-ONLY: Premium Identity Layout ─── */}
-            <div className="md:hidden flex flex-col w-full pb-4">
+            <div className="md:hidden flex flex-col w-full pb-3">
                 {/* Premium Identity Layout (Side-by-side Avatar and Info) */}
-                <div className="flex gap-4 px-4 py-2 items-start relative mt-2">
+                <div className="flex gap-3 px-3 py-1 items-start relative mt-1">
                     {/* Avatar with glow ring */}
                     <div className="relative flex-shrink-0">
                         <div className="absolute -inset-[3px] rounded-full bg-gradient-to-br from-indigo-500/50 via-purple-500/20 to-transparent blur-[6px]" />
@@ -104,11 +104,11 @@ export const SearchProfileHeader = ({
                 </div>
 
                 {/* Full-width Stats Strip */}
-                <div className="flex items-stretch mx-4 mt-1 rounded-2xl overflow-hidden border border-zinc-800/50 bg-gradient-to-b from-zinc-900/80 to-zinc-900/40">
+                <div className="flex items-stretch mx-3 mt-1 rounded-2xl overflow-hidden border border-zinc-800/50 bg-gradient-to-b from-zinc-900/80 to-zinc-900/40">
                     {statItems.map((stat, i) => (
                         <div
                             key={stat.label}
-                            className={`flex-1 flex flex-col items-center justify-center py-3.5 gap-0.5 ${i < statItems.length - 1 ? 'border-r border-zinc-800/50' : ''}`}
+                            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 ${i < statItems.length - 1 ? 'border-r border-zinc-800/50' : ''}`}
                         >
                             <span className="text-white text-[19px] font-black leading-none tracking-tight">{stat.value}</span>
                             <span className="text-zinc-600 text-[9px] font-bold tracking-[0.14em] uppercase">{stat.label}</span>
@@ -118,7 +118,7 @@ export const SearchProfileHeader = ({
 
                 {/* Action Buttons */}
                 {!isOwnProfile && (
-                    <div className="flex gap-3 px-4 mt-4">
+                    <div className="flex gap-3 px-3 mt-3">
                         <AnimatePresence mode="wait">
                             <motion.button
                                 key={isAllied ? 'allied' : isFollowing ? 'following' : 'follow'}

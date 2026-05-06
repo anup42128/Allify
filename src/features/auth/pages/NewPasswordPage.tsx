@@ -80,15 +80,15 @@ export const NewPasswordPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex items-center justify-center py-6 pb-[12vh] md:pb-0">
-                    <div className="w-full max-w-md z-10 px-6 relative mt-4 md:mt-0">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+                    <div className="w-full max-w-md z-10 relative mt-4 md:mt-0">
 
                         {/* Allify Logo */}
                         <motion.h1
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="text-5xl md:text-6xl font-black tracking-tight mb-8 md:mb-12 pb-4 text-center text-white drop-shadow-3xl mt-12 md:leading-none"
+                            className="text-5xl md:text-5xl font-black tracking-tight mb-6 md:mb-8 pb-4 text-center text-white drop-shadow-3xl mt-6 md:mt-8 md:leading-none"
                         >
                             Allify
                         </motion.h1>
@@ -97,10 +97,10 @@ export const NewPasswordPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                            className="space-y-6"
+                            className="space-y-4 md:space-y-4"
                         >
                             {/* Key Icon and Message */}
-                            <div className="flex flex-col items-center space-y-4 mb-8">
+                            <div className="flex flex-col items-center space-y-4 mb-6 md:mb-6">
                                 <motion.div
                                     initial={{ scale: 0 }}
                                     animate={{ scale: 1 }}
@@ -130,7 +130,7 @@ export const NewPasswordPage = () => {
                                 </p>
                             </div>
 
-                            <div className="space-y-5">
+                            <div className="space-y-4 md:space-y-4">
                                 <div className="space-y-4">
                                     <div className="relative group">
                                         <input
@@ -212,7 +212,7 @@ export const NewPasswordPage = () => {
                             </div>
 
                             {/* Security Footer */}
-                            <div className="pt-8 pb-4 text-center">
+                            <div className="pt-6 pb-2 md:pt-6 md:pb-2 text-center">
                                 <p className="text-[10px] md:text-xs text-gray-500/70 font-medium tracking-wide">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 inline-block mr-1.5 -mt-0.5 text-indigo-500/70">
                                         <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />

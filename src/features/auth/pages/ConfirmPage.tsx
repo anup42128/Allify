@@ -136,8 +136,8 @@ export const ConfirmPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center p-6 pb-[10vh] md:pb-6">
-                    <div className="w-full max-w-md z-10 relative mt-16 md:mt-0 flex flex-col">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+                    <div className="w-full max-w-md z-10 relative mt-10 md:mt-0 flex flex-col">
                         {/* Back Button */}
                         <button
                             onClick={() => navigate('/auth/signup')}
@@ -154,7 +154,7 @@ export const ConfirmPage = () => {
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="text-4xl md:text-5xl font-black tracking-tight mb-8 md:mb-12 pb-2 md:pb-4 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-4 md:mt-12"
+                            className="text-4xl md:text-5xl font-black tracking-tight mb-6 md:mb-8 pb-2 md:pb-2 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-4 md:mt-8"
                         >
                             Allify
                         </motion.h1>
@@ -163,10 +163,10 @@ export const ConfirmPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                            className="space-y-5 md:space-y-6"
+                            className="space-y-4 md:space-y-4"
                         >
                             {/* Success Icon and Message */}
-                            <div className="flex flex-col items-center space-y-3 md:space-y-4 mb-6 md:mb-8">
+                            <div className="flex flex-col items-center space-y-3 md:space-y-4 mb-4 md:mb-6">
                                 {/* Success Checkmark Circle */}
                                 <motion.div
                                     initial={{ scale: 0 }}
@@ -252,9 +252,9 @@ export const ConfirmPage = () => {
                         </motion.div>
 
                         {/* Copyright Footer */}
-                        <div className="pt-12 md:pt-20 text-center opacity-60">
+                        <div className="pt-8 md:pt-12 text-center opacity-60">
                             <div className="text-[10px] text-gray-600 font-mono tracking-widest">
-                                ALLIFY © 2025
+                                ALLIFY © 2026
                             </div>
                         </div>
                     </div>

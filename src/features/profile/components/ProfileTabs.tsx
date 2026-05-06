@@ -69,7 +69,7 @@ export const ProfileTabs = ({ activeTab, setActiveTab }: ProfileTabsProps) => {
     const tabs: TabType[] = ['Photos', 'Videos', 'Favourites', 'Likes'];
 
     return (
-        <div className="relative flex border-b border-zinc-800/60 md:border-none mb-0.5 mt-2">
+        <div className="relative flex border-b border-zinc-800/60 md:border-none mb-0.5 mt-0 md:mt-2">
             {/* Desktop: pill-style tabs */}
             <div className="hidden md:flex justify-center mb-8 -mt-5 bg-zinc-900/30 p-1 rounded-full w-fit mx-auto border border-zinc-800/50">
                 {tabs.map((tab) => (

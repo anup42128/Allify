@@ -10,11 +10,11 @@ export const ConnectionNoteModal = ({ isOpen, onClose, fullName }: ConnectionNot
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
             
             {/* The "Real Paper" Note */}
-            <div className="relative w-full max-w-[320px] max-h-[60vh] bg-[#F9F6EE] shadow-[0_20px_60px_rgba(0,0,0,0.6),inset_0_0_60px_rgba(0,0,0,0.05)] transform -rotate-2 text-left flex flex-col"
+            <div className="relative w-full max-w-[320px] max-h-[min(60vh,480px)] bg-[#F9F6EE] shadow-[0_20px_60px_rgba(0,0,0,0.6),inset_0_0_60px_rgba(0,0,0,0.05)] transform -rotate-2 text-left flex flex-col"
                  style={{ 
                      clipPath: 'polygon(32px 0, calc(100% - 32px) 0, 100% 32px, 100% calc(100% - 32px), calc(100% - 32px) 100%, 32px 100%, 0 calc(100% - 32px), 0 32px)',
                      borderRadius: '3px 12px 5px 14px'
@@ -51,14 +51,14 @@ export const ConnectionNoteModal = ({ isOpen, onClose, fullName }: ConnectionNot
 
                 {/* Scrollable Content Container (Hardware Accelerated) */}
                 <div 
-                    className="relative z-10 font-serif text-slate-800 p-8 pr-4 overflow-y-auto transform-gpu will-change-scroll overscroll-contain [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/70"
+                    className="relative z-10 font-serif text-slate-800 pt-10 px-5 pb-5 pr-3 sm:px-8 sm:pb-8 sm:pr-4 overflow-y-auto transform-gpu will-change-scroll overscroll-contain [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-400/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/70"
                     style={{ WebkitOverflowScrolling: 'touch' }}
                 >
-                    <h2 className="text-[20px] italic mb-6 font-medium tracking-tight text-slate-900">
+                    <h2 className="text-[17px] sm:text-[20px] italic mb-4 sm:mb-6 font-medium tracking-tight text-slate-900">
                         Dear {fullName || 'friend'},
                     </h2>
                     
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-4 sm:gap-6">
                         {[
                             "I know it’s not all okay right now.",
                             "You think too much, stress over small things, and still act like it’s nothing. Like you’ve got everything under control… even when you don’t.",
@@ -68,7 +68,7 @@ export const ConnectionNoteModal = ({ isOpen, onClose, fullName }: ConnectionNot
                             "Take it a little easy on yourself, okay? You don’t have to fix everything in one day.",
                             "Keep going. You’re gonna make it, no doubt."
                         ].map((text, i) => (
-                            <p key={i} className="text-[15.5px] leading-[2.2] italic font-medium">
+                            <p key={i} className="text-[13.5px] sm:text-[15.5px] leading-[2] sm:leading-[2.2] italic font-medium">
                                 <span 
                                     className="text-slate-800/95"
                                     style={{
@@ -85,7 +85,7 @@ export const ConnectionNoteModal = ({ isOpen, onClose, fullName }: ConnectionNot
                         ))}
                     </div>
                     
-                    <div className="flex flex-col items-end mt-8 pt-5 border-t border-slate-300/40">
+                    <div className="flex flex-col items-end mt-5 sm:mt-8 pt-4 sm:pt-5 border-t border-slate-300/40">
                         <span className="text-[15px] italic font-medium text-slate-800 mb-1 flex items-center gap-1.5">
                             — with love 
                             <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-rose-500">

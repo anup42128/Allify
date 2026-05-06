@@ -118,8 +118,8 @@ export const SearchPage = () => {
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 className={`w-full md:w-[375px] flex-shrink-0 h-full border-r border-zinc-900/50 bg-black flex flex-col z-10 md:pb-0 ${selectedUser ? 'hidden md:flex' : 'flex'}`}
             >
-                <div className="pt-8 pb-4 px-6">
-                    <h1 className="text-white text-2xl font-bold mb-6">Search</h1>
+                <div className="pt-6 md:pt-8 pb-3 md:pb-4 px-4 md:px-6">
+                    <h1 className="text-white text-2xl font-bold mb-4 md:mb-6">Search</h1>
                     
                     {/* Search Input Box */}
                     <div className="relative group">
@@ -162,7 +162,7 @@ export const SearchPage = () => {
                                     {recentSearches.map((user) => (
                                         <div
                                             key={user.id}
-                                            className="group flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors hover:bg-zinc-800/50"
+                                            className="group flex items-center gap-3 p-1.5 md:p-2 rounded-lg cursor-pointer transition-colors hover:bg-zinc-800/50"
                                         >
                                             <div
                                                 className="flex items-center gap-3 flex-1 min-w-0"
@@ -242,7 +242,7 @@ export const SearchPage = () => {
                                         }
                                         setSelectedUser(user);
                                     }}
-                                    className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${selectedUser?.id === user.id ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'}`}
+                                    className={`flex items-center gap-3 p-1.5 md:p-2 rounded-lg cursor-pointer transition-colors ${selectedUser?.id === user.id ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'}`}
                                 >
                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 relative">
                                         {user.avatar_url ? (

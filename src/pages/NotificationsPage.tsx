@@ -27,7 +27,7 @@ export const NotificationsPage = () => {
             
             {/* Left Sidebar - Notifications List */}
             <div className="w-full md:w-[400px] xl:w-[450px] border-r border-zinc-900/50 flex flex-col bg-black flex-shrink-0 z-10 transition-all">
-                <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-zinc-900/50 px-4 md:px-6 py-4 md:py-5 flex items-center justify-between">
+                <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-zinc-900/50 px-4 md:px-6 py-3 md:py-5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate(-1)}
@@ -58,7 +58,7 @@ export const NotificationsPage = () => {
                             />
                         </div>
                     )}
-                    <div className="p-4 space-y-1.5">
+                    <div className="p-3 md:p-4 space-y-1.5">
                     {notifs.length > 0 ? (
                         // Has data — always show it, whether refreshing or not
                         notifs.map(n => <NotificationItem key={n.id} notif={n} currentUser={currentUser} onSelectPost={handleSelectPost} />)

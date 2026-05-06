@@ -226,7 +226,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({ notif, curre
     return (
         <div 
             onClick={handleClick}
-            className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all border ${
+            className={`flex items-center gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-2xl cursor-pointer transition-all border ${
                 notif.is_read ? 'bg-black border-zinc-800/50 hover:bg-zinc-900/30' : 'bg-black border-zinc-700/60 hover:bg-zinc-900/30'
             }`}
         >

@@ -148,9 +148,9 @@ export const MessageInputArea = ({
     };
 
     return (
-        <div className="px-4 pb-3 pt-2 flex-shrink-0 bg-black flex flex-col relative w-full">
+        <div className="px-2 md:px-4 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:pb-3 pt-2 flex-shrink-0 bg-black flex flex-col relative w-full">
             {/* -- UNIFIED INPUT & REPLY CONTAINER -- */}
-            <div className="flex flex-col bg-zinc-900 rounded-[24px] border border-zinc-800/60 focus-within:border-zinc-500 transition-colors shadow-inner relative z-20 overflow-hidden">
+            <div className="flex flex-col bg-zinc-900 rounded-[20px] md:rounded-[24px] border border-zinc-800/60 focus-within:border-zinc-500 transition-colors shadow-inner relative z-20 overflow-hidden">
                 <AnimatePresence>
                     {activeReplyMsg && (
                         <motion.div
@@ -185,7 +185,7 @@ export const MessageInputArea = ({
                     )}
                 </AnimatePresence>
 
-                <div className="flex items-end gap-2 p-1.5 pl-4 bg-transparent w-full relative">
+                <div className="flex items-end gap-1.5 md:gap-2 p-1 md:p-1.5 pl-3 md:pl-4 bg-transparent w-full relative">
                     <AnimatePresence mode="wait">
                         {isRecording ? (
                             <motion.div 
@@ -262,14 +262,14 @@ export const MessageInputArea = ({
                                 onChange={handleTextareaChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder={`Message ${displayUser.username}...`}
-                                className="flex-1 min-w-0 break-words bg-transparent text-white text-base placeholder-zinc-500 resize-none focus:outline-none py-1.5 max-h-[120px]"
+                                className="flex-1 min-w-0 break-words bg-transparent text-white text-[15px] md:text-base placeholder-zinc-500 resize-none focus:outline-none py-1.5 max-h-[120px]"
                                 style={{ height: inputHeight, minHeight: '24px' }}
                                 autoFocus={!isMobile}
                             />
                         )}
                     </AnimatePresence>
 
-                    <div className={`flex flex-shrink-0 items-center justify-center ${isRecording ? 'hidden' : 'h-9 w-9'}`}>
+                    <div className={`flex flex-shrink-0 items-center justify-center ${isRecording ? 'hidden' : 'h-8 w-8 md:h-9 md:w-9'}`}>
                         <AnimatePresence mode="wait" initial={false}>
                         {inputText.trim() ? (
                             <motion.button
@@ -282,7 +282,7 @@ export const MessageInputArea = ({
                                 }}
                                 onClick={handleSend}
                                 disabled={isSending}
-                                className="w-9 h-9 flex items-center justify-center text-white active:scale-95 cursor-pointer"
+                                className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-white active:scale-95 cursor-pointer"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
                                     <polygon points="12 3 4 21 12 17 20 21"></polygon>
@@ -296,7 +296,7 @@ export const MessageInputArea = ({
                                 animate={{ scale: 1, opacity: 1 }}
                                 exit={{ scale: 0, opacity: 0 }}
                                 onClick={startRecording}
-                                className="w-9 h-9 flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-95"
+                                className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-zinc-400 hover:text-white transition-colors active:scale-95"
                             >
                                 <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />

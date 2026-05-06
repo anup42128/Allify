@@ -16,10 +16,10 @@ export const HomePage = () => {
     return (
         <div className="flex flex-col h-full bg-black relative w-full overflow-hidden pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
             {/* Mobile Header */}
-            <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-zinc-900 bg-black/80 backdrop-blur-md sticky top-0 z-50">
+            <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-900 bg-black/80 backdrop-blur-md sticky top-0 z-50">
                 <span className="text-white font-black text-2xl tracking-tighter">Allify</span>
                 <div className="flex gap-4">
-                    <Link to="/notifications" className="relative group">
+                    <Link to="/notifications" className="relative group flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7 text-white transition-transform group-hover:scale-110">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.31 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                         </svg>

@@ -34,13 +34,13 @@ export const ChatHeader = ({ user, onBack }: { user: Partial<Participant>, onBac
     }, [user?.id]);
 
     return (
-        <div className="flex items-center gap-3 px-3 md:px-5 py-3 md:py-4 border-b border-zinc-800/60 flex-shrink-0 bg-black/80 backdrop-blur-md">
+        <div className="flex items-center gap-2 md:gap-3 px-2 md:px-5 py-2.5 md:py-4 border-b border-zinc-800/60 flex-shrink-0 bg-black/80 backdrop-blur-md">
             {onBack && (
                 <button
                     onClick={onBack}
-                    className="md:hidden w-10 h-10 -ml-1 rounded-full flex items-center justify-center hover:bg-zinc-800/80 transition-colors text-white"
+                    className="md:hidden w-8 h-8 md:w-10 md:h-10 -ml-1 rounded-full flex items-center justify-center hover:bg-zinc-800/80 transition-colors text-white"
                 >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 md:w-6 md:h-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
@@ -49,7 +49,7 @@ export const ChatHeader = ({ user, onBack }: { user: Partial<Participant>, onBac
                 <Avatar user={user} size="sm" />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-sm truncate">@{user.username}</p>
+                <p className="text-white font-bold text-[13px] md:text-sm truncate">@{user.username}</p>
                 <AnimatePresence mode="wait">
                     {isOnline ? (
                         <motion.p
@@ -58,7 +58,7 @@ export const ChatHeader = ({ user, onBack }: { user: Partial<Participant>, onBac
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -4 }}
                             transition={{ duration: 0.2 }}
-                            className="text-green-400 text-[13px] font-semibold flex items-center gap-1.5"
+                            className="text-green-400 text-[11px] md:text-[13px] font-semibold flex items-center gap-1.5"
                         >
                             is online
                         </motion.p>
@@ -69,7 +69,7 @@ export const ChatHeader = ({ user, onBack }: { user: Partial<Participant>, onBac
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -4 }}
                             transition={{ duration: 0.2 }}
-                            className="text-zinc-500 text-[14px]"
+                            className="text-zinc-500 text-[11px] md:text-[14px]"
                         >
                             {formatLastSeen(lastSeen)}
                         </motion.p>

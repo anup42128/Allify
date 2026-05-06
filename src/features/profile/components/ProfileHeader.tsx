@@ -111,12 +111,12 @@ export const ProfileHeader = ({ profile, stats, onAvatarClick, setProfile }: Pro
 
     return (
         <>
-            <div className="flex flex-col mb-4 md:mb-16 md:items-center md:text-center">
+            <div className="flex flex-col mb-1 md:mb-16 md:items-center md:text-center">
 
             {/* ─── MOBILE-ONLY: Premium Identity Layout ─── */}
-            <div className="md:hidden relative overflow-hidden">
+            <div className="md:hidden relative overflow-hidden flex flex-col w-full pb-1 md:pb-3">
                 {/* Top section: avatar + name + mini stats */}
-                <div className="flex items-start gap-4 px-4 pt-5 pb-4 relative z-10">
+                <div className="flex items-start gap-3 px-3 pt-4 pb-2 relative z-10 mt-1">
                     {/* Avatar with glow ring */}
                     <div className="relative flex-shrink-0">
                         <div className="absolute -inset-[3px] rounded-full bg-gradient-to-br from-indigo-500/50 via-purple-500/20 to-transparent blur-[6px]" />
@@ -232,11 +232,11 @@ export const ProfileHeader = ({ profile, stats, onAvatarClick, setProfile }: Pro
                     </div>
                 </div>
                 {/* Full-width Stats Strip */}
-                <div className="flex items-stretch mx-4 mt-4 rounded-2xl overflow-hidden border border-zinc-800/50 bg-gradient-to-b from-zinc-900/80 to-zinc-900/40">
+                <div className="flex items-stretch mx-3 mt-1 rounded-2xl overflow-hidden border border-zinc-800/50 bg-gradient-to-b from-zinc-900/80 to-zinc-900/40">
                     {statItems.map((stat, i) => (
                         <div
                             key={stat.label}
-                            className={`flex-1 flex flex-col items-center justify-center py-3.5 gap-0.5 ${i < statItems.length - 1 ? 'border-r border-zinc-800/50' : ''}`}
+                            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 ${i < statItems.length - 1 ? 'border-r border-zinc-800/50' : ''}`}
                         >
                             <span className="text-white text-[19px] font-black leading-none tracking-tight">{stat.value}</span>
                             <span className="text-zinc-600 text-[9px] font-bold tracking-[0.14em] uppercase">{stat.label}</span>
@@ -246,7 +246,7 @@ export const ProfileHeader = ({ profile, stats, onAvatarClick, setProfile }: Pro
 
 
                 {/* Action Buttons */}
-                <div className="flex justify-center gap-3 px-4 mt-4">
+                <div className="flex justify-center gap-3 px-3 mt-3">
                     <button
                         onClick={() => navigate('/profile/edit')}
                         className="flex-1 max-w-[160px] group focus:outline-none"
@@ -271,7 +271,7 @@ export const ProfileHeader = ({ profile, stats, onAvatarClick, setProfile }: Pro
 
                 {/* Other badges (not verified/premium/developer — already inline above) */}
                 {profile?.badges && profile.badges.filter((b: string) => !['verified', 'premium', 'developer'].includes(b)).length > 0 && (
-                    <div className="flex flex-wrap gap-2 px-4 pb-3">
+                    <div className="flex flex-wrap gap-2 px-3 pb-2 mt-2">
                         {profile.badges.filter((b: string) => !['verified', 'premium', 'developer'].includes(b)).map((badgeId: string) => {
                             const config = BADGE_CONFIG[badgeId];
                             if (!config) return null;

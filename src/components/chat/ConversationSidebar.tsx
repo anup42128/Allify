@@ -94,9 +94,9 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             className="w-full md:w-[440px] flex-shrink-0 h-full md:border-r border-zinc-800/60 flex flex-col bg-black md:pb-0"
         >
             {/* Header */}
-            <div className="px-5 pt-8 pb-4">
-                <div className="flex items-center justify-between mb-5">
-                    <h1 className="text-white text-xl font-bold tracking-tight">Messages</h1>
+            <div className="px-3 md:px-5 pt-4 md:pt-8 pb-3 md:pb-4">
+                <div className="flex items-center justify-between mb-4 md:mb-5">
+                    <h1 className="text-white text-lg md:text-xl font-bold tracking-tight">Messages</h1>
                     <button
                         title={isSearchOpen ? 'Close' : 'New Message'}
                         onClick={() => {
@@ -148,13 +148,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                                                 .select('id, username, full_name, avatar_url')
                                                 .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
                                                 .neq('id', currentUser?.id ?? '')
-                                                .limit(8);
+                                                .limit(5);
                                             setSearchResults((data as Participant[]) ?? []);
                                             setIsSearching(false);
                                         }, 300);
                                     }}
                                     placeholder="Search people…"
-                                    className="w-full pl-9 pr-4 py-2.5 bg-zinc-900 border border-zinc-700/60 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+                                    className="w-full pl-9 pr-4 py-2 md:py-2.5 bg-zinc-900 border border-zinc-700/60 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
                                 />
                                 {isSearching && (
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -186,7 +186,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                                                         setIsOpeningChat(null);
                                                     }
                                                 }}
-                                                className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/80 transition-colors text-left ${
+                                                className={`w-full flex items-center gap-2 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 hover:bg-zinc-800/80 transition-colors text-left ${
                                                     idx < searchResults.length - 1 ? 'border-b border-zinc-800/60' : ''
                                                 }`}
                                             >
@@ -240,7 +240,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             {/* Conversation List */}
             <div className="flex-1 overflow-y-auto px-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                 {isLoadingConvs || isLocalSearching ? (
-                    <div className="flex flex-col gap-3 px-3 pt-4">
+                    <div className="flex flex-col gap-2 md:gap-3 px-2 md:px-3 pt-2 md:pt-4">
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className="flex items-center gap-3 animate-pulse">
                                 <div className="w-11 h-11 rounded-full bg-zinc-800 flex-shrink-0" />
@@ -270,7 +270,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.03 }}
                                 onClick={() => onSelectConversation(conv)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left group ${activeConvId === conv.id ? 'bg-zinc-800/80' : 'hover:bg-zinc-900/70'}`}
+                                className={`w-full flex items-center gap-2.5 md:gap-3 px-2 md:px-3 py-2.5 md:py-3 rounded-xl transition-all text-left group ${activeConvId === conv.id ? 'bg-zinc-800/80' : 'hover:bg-zinc-900/70'}`}
                             >
                                 <Avatar user={conv.other_user} />
                                 <div className="flex-1 min-w-0">

@@ -183,9 +183,9 @@ export const CreatePage = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="flex-1 flex flex-col items-center justify-center gap-8"
+                        className="flex-1 flex flex-col items-center justify-center gap-6 md:gap-8"
                     >
-                        <h1 className="text-3xl font-bold tracking-tight">Create new post</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Create new post</h1>
                         {videoUploadBlocked ? (
                             <motion.div 
                                 initial={{ opacity: 0, scale: 0.9 }}
@@ -216,8 +216,8 @@ export const CreatePage = () => {
                                 onClick={() => fileInputRef.current?.click()}
                                 className="group relative cursor-pointer w-[80vw] max-w-sm aspect-[4/5] md:w-64 md:h-80 mx-auto"
                             >
-                                <div className="w-full h-full rounded-[2.5rem] border border-zinc-800 flex flex-col items-center justify-center gap-6 bg-zinc-900/40 backdrop-blur-md group-hover:bg-zinc-800/60 transition-all duration-300 shadow-xl">
-                                    <div className="p-5 md:p-6 rounded-full bg-zinc-800/80 group-hover:scale-105 transition-transform duration-300">
+                                <div className="w-full h-full rounded-[2.5rem] border border-zinc-800 flex flex-col items-center justify-center gap-4 md:gap-6 bg-zinc-900/40 backdrop-blur-md group-hover:bg-zinc-800/60 transition-all duration-300 shadow-xl">
+                                    <div className="p-4 md:p-6 rounded-full bg-zinc-800/80 group-hover:scale-105 transition-transform duration-300">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 md:w-10 md:h-10 text-white">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                                         </svg>
@@ -276,46 +276,49 @@ export const CreatePage = () => {
                         key="details"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="flex-1 flex flex-col max-w-4xl mx-auto w-full pb-20"
+                        className="flex-1 flex flex-col max-w-4xl mx-auto w-full pb-4 md:pb-20"
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between mb-8 px-4 relative">
-                            <div className="flex-1 flex justify-start">
+                        <div className="flex items-center justify-between mb-4 md:mb-8 px-2 md:px-4 relative">
+                            {/* Left side: Back Button & Cancel Button */}
+                            <div className="flex-1 flex justify-start items-center gap-1 md:gap-3">
                                 <button
                                     onClick={() => setStep('filter')}
-                                    className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
+                                    className="p-1 md:p-2 -ml-1 md:-ml-2 text-zinc-400 hover:text-white transition-colors"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6 md:w-8 md:h-8">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => setShowCancelModal(true)}
+                                    className="p-2 md:p-3 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                                    title="Discard Post"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 md:w-6 h-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
                             </div>
                             
-                            <h2 className="text-xl font-bold absolute left-1/2 -translate-x-1/2">New Post</h2>
+                            {/* Center: Title */}
+                            <h2 className="text-base sm:text-lg md:text-xl font-bold absolute left-1/2 -translate-x-1/2 whitespace-nowrap">New Post</h2>
                             
-                            <div className="flex-1 flex justify-end items-center gap-2">
-                                <button
-                                    onClick={() => setShowCancelModal(true)}
-                                    className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
-                                    title="Discard Post"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-6 h-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                            {/* Right side: Share Button */}
+                            <div className="flex-1 flex justify-end items-center">
                                 <button
                                     onClick={handlePost}
                                     disabled={isUploading}
-                                    className="px-6 py-2 bg-blue-600 text-white rounded-full font-bold text-sm tracking-wide hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-4 md:px-6 py-1.5 md:py-2 bg-blue-600 text-white rounded-full font-bold text-xs md:text-sm tracking-wide hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isUploading ? 'Sharing...' : 'Share'}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-8 px-4 items-stretch">
+                        <div className="flex flex-col md:flex-row gap-4 md:gap-8 px-2 md:px-4 items-stretch">
                             {/* Image/Video Preview */}
-                            <div className={`w-full bg-black rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center shrink min-w-0 md:max-w-[50%] ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'w-full md:w-auto min-h-[250px] md:min-h-[400px]'}`}>
+                            <div className={`w-full bg-black rounded-3xl md:rounded-[2rem] overflow-hidden border border-zinc-800 shadow-2xl relative flex items-center justify-center shrink min-w-0 md:max-w-[50%] ${mediaType === 'video' ? 'aspect-[9/16] md:max-w-[400px]' : 'w-full md:w-auto min-h-[200px] md:min-h-[400px]'}`}>
                                 {mediaType === 'video' && originalFile ? (
                                     <video
                                         src={URL.createObjectURL(originalFile)}
@@ -348,18 +351,18 @@ export const CreatePage = () => {
                             </div>
 
                             {/* Caption Input */}
-                            <div className="flex-1 flex flex-col gap-4">
-                                <div className="bg-zinc-900/50 rounded-[2rem] border border-zinc-800 p-6 flex-1 min-h-[150px] md:min-h-[300px]">
+                            <div className="flex-1 flex flex-col gap-3 md:gap-4">
+                                <div className="bg-zinc-900/50 rounded-3xl md:rounded-[2rem] border border-zinc-800 p-4 md:p-6 flex-1 min-h-[120px] md:min-h-[300px]">
                                     <textarea
                                         value={caption}
                                         onChange={(e) => setCaption(e.target.value)}
                                         placeholder="Write a caption..."
-                                        className="w-full h-full bg-transparent border-none outline-none resize-none text-lg text-white placeholder-zinc-500"
+                                        className="w-full h-full bg-transparent border-none outline-none resize-none text-base md:text-lg text-white placeholder-zinc-500"
                                         autoFocus
                                     />
                                 </div>
-                                <div className="flex items-center gap-2 text-zinc-500 text-sm px-2">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                                <div className="flex items-center gap-1.5 md:gap-2 text-zinc-500 text-[11px] md:text-sm px-1 md:px-2">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                                     </svg>
                                     <span>Your post will be shared to your profile and followers</span>

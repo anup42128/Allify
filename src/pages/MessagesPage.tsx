@@ -126,12 +126,12 @@ export const MessagesPage = () => {
                                 ) : (
                                     <div className="flex flex-col min-h-full pt-2 pb-0 space-y-0.5">
                                         {/* Scrollable Conversation Intro Header */}
-                                        <div className="flex flex-col items-center justify-start shrink-0 gap-3 text-center pt-24 pb-12">
-                                            <div className="transform scale-[2] mb-6 drop-shadow-2xl">
+                                        <div className="flex flex-col items-center justify-start shrink-0 gap-2 md:gap-3 text-center pt-12 md:pt-24 pb-8 md:pb-12">
+                                            <div className="transform scale-[1.5] md:scale-[2] mb-4 md:mb-6 drop-shadow-2xl">
                                                 <Avatar user={displayUser} size="lg" />
                                             </div>
-                                            <div className="space-y-1">
-                                                <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400">
+                                            <div className="space-y-0.5 md:space-y-1">
+                                                <h3 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400">
                                                     {displayUser.full_name || displayUser.username}
                                                 </h3>
                                                 <p className="text-zinc-500 font-medium tracking-wide text-sm">@{displayUser.username}</p>

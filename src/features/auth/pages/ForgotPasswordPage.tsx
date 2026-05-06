@@ -167,8 +167,8 @@ export const ForgotPasswordPage = () => {
 
             {/* Scrollable Overlay */}
             <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex items-center justify-center py-6 pb-[12vh] md:pb-0">
-                    <div className="w-full max-w-md z-10 px-6 relative mt-16 md:mt-0">
+                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+                    <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         <button
                             onClick={() => navigate('/auth/login', { replace: true })}
                             className="absolute -top-14 md:top-0 left-4 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium whitespace-nowrap"
@@ -183,24 +183,24 @@ export const ForgotPasswordPage = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6 }}
-                            className="space-y-6 mt-4 md:mt-12"
+                            className="space-y-4 md:space-y-4 mt-4 md:mt-12"
                         >
-                            <div className="text-center space-y-1 md:space-y-2 mb-8">
+                            <div className="text-center space-y-1 md:space-y-1 mb-6 md:mb-6">
                                 <motion.h1
                                     initial={{ scale: 0.9 }}
                                     animate={{ scale: 1 }}
                                     transition={{ duration: 0.5 }}
-                                    className="text-5xl md:text-6xl font-black tracking-tighter text-white drop-shadow-3xl mb-2 md:mb-4 leading-none"
+                                    className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-3xl mb-1 md:mb-2 leading-none"
                                 >
                                     Allify
                                 </motion.h1>
-                                <h2 className="text-xl md:text-2xl font-bold text-gray-200 tracking-tight">Reset Password</h2>
+                                <h2 className="text-xl md:text-xl font-bold text-gray-200 tracking-tight">Reset Password</h2>
                                 <p className="text-zinc-500 md:text-gray-400 text-[13px] md:text-sm max-w-xs mx-auto font-medium md:font-normal">
                                     Enter your email or username to receive a secure password reset link.
                                 </p>
                             </div>
 
-                            <div className="space-y-5">
+                            <div className="space-y-4 md:space-y-4">
                                 <div className="relative group">
                                     <input
                                         type="text"
@@ -227,7 +227,7 @@ export const ForgotPasswordPage = () => {
                                 <button
                                     onClick={handleSendOTP}
                                     disabled={isLoading || !identifier.trim() || cooldownTimeLeft > 0}
-                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-6 md:mt-6"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-4"
                                 >
                                     {isLoading ? (
                                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -256,7 +256,7 @@ export const ForgotPasswordPage = () => {
                             </div>
 
                             {/* Security Footer */}
-                            <div className="pt-8 pb-4 text-center">
+                            <div className="pt-6 pb-2 md:pt-6 md:pb-2 text-center">
                                 <p className="text-[10px] md:text-xs text-gray-500/70 font-medium tracking-wide">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 inline-block mr-1.5 -mt-0.5 text-indigo-500/70">
                                         <path fillRule="evenodd" d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z" clipRule="evenodd" />

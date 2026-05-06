@@ -154,7 +154,7 @@ export const SearchPostsGrid = ({
                     )}
                 </div>
             ) : (
-            <div className="grid grid-cols-3 gap-1 px-2 md:px-0 md:gap-6 auto-rows-[1fr] mt-2">
+            <div className="grid grid-cols-3 gap-1 px-2 md:px-0 md:gap-6 auto-rows-[1fr] mt-1 md:mt-2">
                 {filteredPosts.map((post) => (
                     <motion.div
                         key={post.id}
