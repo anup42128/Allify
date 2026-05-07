@@ -12,7 +12,7 @@ interface UseChatRealtimeOptions {
     setIsTyping: React.Dispatch<React.SetStateAction<boolean>>;
     setInitialUnreadId: React.Dispatch<React.SetStateAction<string | null>>;
     handledUnreadScrollRef: React.MutableRefObject<string | null>;
-    scrollToBottom: () => void;
+    scrollToBottom: (behavior?: ScrollBehavior) => void;
     fetchConversations: (userId: string) => Promise<void>;
     scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -264,7 +264,7 @@ export function useChatRealtime({
                 if (container) {
                     const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
                     if (distFromBottom < 200) {
-                        scrollToBottom();
+                        scrollToBottom('smooth');
                     }
                 }
             })

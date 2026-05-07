@@ -4,11 +4,68 @@ import { useNavigation } from '../../features/auth/contexts/SignupContext';
 import { SocialGraph } from '../ui/SocialGraph';
 import { BackgroundGradient } from '../ui/BackgroundGradient';
 import { api } from '../../lib/api';
+import { useEffect, useRef } from 'react';
+import Lenis from 'lenis';
 
+// ── Letter reveal variants (opacity + translateY only = pure GPU, zero lag) ──
+const titleContainerVariants = {
+    hidden: {},
+    visible: {
+        transition: {
+            staggerChildren: 0.15,
+            delayChildren: 0.2,
+        },
+    },
+};
+
+const letterVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: { duration: 0.4, ease: "easeOut" as any },
+    },
+};
+
+const headerContainerVariants = {
+    hidden: {},
+    visible: {
+        transition: {
+            staggerChildren: 0.15,
+            delayChildren: 3.2,
+        },
+    },
+};
 
 export const LandingPage = () => {
     const navigate = useNavigate();
     const { allowRoute } = useNavigation();
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // ── Lenis Smooth Scroll (landing page only) ──
+    useEffect(() => {
+        const container = scrollRef.current;
+        if (!container) return;
+
+        const lenis = new Lenis({
+            wrapper: container,
+            content: container.firstElementChild as HTMLElement,
+            lerp: 0.1,           // smoothness — 0.05 (very smooth) to 0.2 (snappy)
+            smoothWheel: true,
+        });
+
+        let rafId: number;
+        const raf = (time: number) => {
+            lenis.raf(time);
+            rafId = requestAnimationFrame(raf);
+        };
+        rafId = requestAnimationFrame(raf);
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            lenis.destroy();
+        };
+    }, []);
+
 
 
     const handleCreateAccount = () => {
@@ -35,17 +92,26 @@ export const LandingPage = () => {
             </div>
 
             {/* Scrollable Overlay */}
-            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu z-10 w-full min-h-[100svh]">
+            <div ref={scrollRef} className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu z-10 w-full min-h-[100svh]">
                 <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center relative py-12">
                     {/* Header Section */}
                     <header className="w-full p-6 md:p-8 flex justify-center items-center z-20 mb-auto">
                         <motion.h1
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.8, delay: 0.2 }}
+                            variants={headerContainerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            aria-label="U.N.I"
                             className="text-xl md:text-2xl font-bold tracking-[0.1em] text-white/50 hover:text-white transition-colors cursor-default"
                         >
-                            U.N.I
+                            {'U.N.I'.split('').map((char, i) => (
+                                <motion.span
+                                    key={i}
+                                    variants={letterVariants}
+                                    className="inline-block"
+                                >
+                                    {char}
+                                </motion.span>
+                            ))}
                         </motion.h1>
                     </header>
 
@@ -54,7 +120,7 @@ export const LandingPage = () => {
                         <motion.div
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            transition={{ duration: 0.8, delay: 2.4, ease: "easeOut" }}
                             className="mb-6 relative group inline-block"
                         >
                             <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur opacity-[0.05] transition-opacity duration-500 group-hover:opacity-[0.10]"></div>
@@ -64,18 +130,27 @@ export const LandingPage = () => {
                         </motion.div>
 
                         <motion.h2
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.2 }}
-                            className="text-6xl sm:text-7xl md:text-9xl font-black tracking-tighter md:tracking-tight mb-2 md:mb-4 py-4 md:py-8 px-4 leading-none bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40"
+                            variants={titleContainerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            aria-label="Allify"
+                            className="text-6xl sm:text-7xl md:text-9xl font-black tracking-wide mb-2 md:mb-4 py-4 md:py-8 px-4 leading-none text-white overflow-visible"
                         >
-                            Allify
+                            {'Allify'.split('').map((letter, i) => (
+                                <motion.span
+                                    key={i}
+                                    variants={letterVariants}
+                                    className="inline-block"
+                                >
+                                    {letter}
+                                </motion.span>
+                            ))}
                         </motion.h2>
 
                         <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 1, delay: 0.4 }}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.8, delay: 1.8, ease: 'easeOut' }}
                             className="text-base sm:text-lg md:text-xl text-gray-400 max-w-[280px] sm:max-w-sm md:max-w-lg mb-10 font-normal md:font-light leading-relaxed"
                         >
                             Connect without limits. Share without boundaries. <br className="hidden md:block" /> Experience the new vibe of social networking.
@@ -84,7 +159,7 @@ export const LandingPage = () => {
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.6 }}
+                            transition={{ duration: 0.8, delay: 2.0 }}
                             className="flex flex-col sm:flex-row gap-4 w-[280px] sm:w-auto mt-2 md:mt-0"
                         >
                             <button
@@ -107,11 +182,11 @@ export const LandingPage = () => {
                     </main>
 
                     {/* Footer Section */}
-                    <footer className="w-full text-center text-white/30 text-sm z-10 p-8 mt-auto">
+                    <footer className="w-full text-center text-white/30 text-sm z-10 pt-8 pb-16 mt-auto">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 1.5, duration: 1 }}
+                            transition={{ delay: 3.0, duration: 1 }}
                         >
                             © {new Date().getFullYear()} Allify by UNI. All rights reserved.
                         </motion.div>

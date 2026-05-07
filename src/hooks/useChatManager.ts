@@ -301,7 +301,8 @@ export function useChatManager() {
         isSending,
         setIsSending,
         typingTimeoutRef,
-        isSendingTypingRef
+        isSendingTypingRef,
+        scrollContainerRef
     });
 
 

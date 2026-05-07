@@ -23,7 +23,7 @@ export interface UseChatActionsParams {
     activeConvId: string | null;
     activeConvIdRef: React.MutableRefObject<string | null>;
     fetchConversations: (userId: string) => Promise<void>;
-    scrollToBottom: () => void;
+    scrollToBottom: (behavior?: ScrollBehavior) => void;
     activeReplyMsg: Message | null;
     setActiveReplyMsg: (msg: Message | null) => void;
     setActiveReactMsg: (msgId: string | null) => void;
@@ -33,6 +33,7 @@ export interface UseChatActionsParams {
     setIsSending: (val: boolean) => void;
     typingTimeoutRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
     isSendingTypingRef: React.MutableRefObject<boolean>;
+    scrollContainerRef: React.RefObject<HTMLDivElement | null> | React.MutableRefObject<HTMLDivElement | null> | any;
 }
 
 export function useChatActions({
@@ -52,7 +53,8 @@ export function useChatActions({
     isSending,
     setIsSending,
     typingTimeoutRef,
-    isSendingTypingRef
+    isSendingTypingRef,
+    scrollContainerRef
 }: UseChatActionsParams) {
 
     const handleReaction = useCallback(async (messageId: string, emoji: string) => {
@@ -103,7 +105,7 @@ export function useChatActions({
         } catch (err: any) {
             console.error('Failed to react:', err);
         }
-    }, [currentUser, messages, typingChannelRef, activeConvIdRef, setMessages, setActiveReactMsg]);
+    }, [currentUser, messages, typingChannelRef, activeConvIdRef, setMessages, setActiveReactMsg, scrollContainerRef, scrollToBottom]);
 
     const handleUnsendMessage = useCallback(async (msgId: string) => {
         if (!activeConvId) return;

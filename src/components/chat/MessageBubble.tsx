@@ -1,9 +1,51 @@
 import React, { Fragment, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion';
 import { VoiceMessageBubble } from './VoiceMessageBubble';
 import type { Message, Participant } from '../../types/chat';
 
+const TARGET_HEIGHT = 16;
 
+const SyncScrollSpacer: React.FC = () => {
+    const ref = useRef<HTMLDivElement>(null);
+    const heightMotion = useMotionValue(0);
+
+    useEffect(() => {
+        const scrollContainer = document.getElementById('chat-scroll-container');
+        let prevHeight = 0;
+
+        const unsubscribe = heightMotion.on('change', (latest) => {
+            const delta = latest - prevHeight;
+            prevHeight = latest;
+            
+            // 1. Force the height update on the DOM element FIRST
+            if (ref.current) {
+                ref.current.style.height = `${latest}px`;
+            }
+            
+            // 2. Force the browser to recalculate the layout immediately so scrollHeight updates!
+            if (scrollContainer) {
+                void scrollContainer.scrollHeight; 
+                
+                // 3. Now that scrollHeight is guaranteed to have grown, we can safely increment scrollTop!
+                if (delta > 0) {
+                    scrollContainer.scrollTop += delta;
+                }
+            }
+        });
+
+        const controls = animate(heightMotion, TARGET_HEIGHT, {
+            duration: 0.25,
+            ease: 'easeOut',
+        });
+
+        return () => {
+            unsubscribe();
+            controls.stop();
+        };
+    }, []);
+
+    return <div ref={ref} className="w-full pointer-events-none shrink-0" style={{ height: 0 }} />;
+};
 
 const formatMessageTime = (iso: string) => {
     const d = new Date(iso);
@@ -60,6 +102,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const actionPopoverRef = useRef<HTMLDivElement>(null);
     const emojiPopoverRef = useRef<HTMLDivElement>(null);
+    const [showReactDetails, setShowReactDetails] = React.useState(false);
 
     // Dynamic Edge Detection System
     useEffect(() => {
@@ -202,7 +245,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                         );
                     })()}
 
-                    <div className={`flex items-center gap-2 relative z-10 ${msg.message_reactions && msg.message_reactions.length > 0 ? 'mb-4' : ''}`}>
+                    <div className="flex items-center gap-2 relative z-10">
                         {/* Timestamp removed to prevent screen overflow on wide bubbles */}
 
                         {/* OUTGOING ACTION BUTTONS */}
@@ -222,13 +265,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9, y: 6 }}
                                             transition={{ duration: 0.15, ease: "easeOut" }}
-                                            className="absolute bottom-full mb-3 right-0 z-[60] flex items-center gap-1.5 md:gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
+                                            className="absolute bottom-full mb-3 right-0 z-[60] flex items-center gap-1.5 px-2 py-1.5 bg-zinc-900 border border-zinc-700/60 rounded-[24px] shadow-2xl shadow-black/50 backdrop-blur-md"
                                         >
                                             {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => (
                                                 <button
                                                     key={emoji}
                                                     onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
-                                                    className={`text-[22px] md:text-[26px] leading-none w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
+                                                    className={`text-[20px] md:text-[24px] leading-none w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
                                                             ? 'bg-zinc-800 ring-2 ring-purple-500 scale-[1.10] shadow-lg shadow-purple-500/20'
                                                             : ''
                                                         }`}
@@ -236,12 +279,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                                     {emoji}
                                                 </button>
                                             ))}
-                                            <div className="w-px h-6 md:h-7 bg-zinc-700 mx-0.5 md:mx-1"></div>
+                                            <div className="w-px h-5 md:h-6 bg-zinc-700 mx-0.5"></div>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }}
-                                                className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors"
+                                                className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors"
                                             >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4.5 h-4.5 md:w-5 md:h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 md:w-4.5 md:h-4.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                         </motion.div>
                                     )}
@@ -330,32 +373,100 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                             )}
 
                             {/* ── Reaction Badges Overlay ── */}
-                            {msg.message_reactions && msg.message_reactions.length > 0 && (
-                                <div className={`absolute -bottom-4 ${isMe ? 'right-2 flex-row-reverse' : 'left-2 flex-row'} flex items-center gap-1 z-20`}>
-                                    {Object.entries(
-                                        msg.message_reactions.reduce((acc, r) => {
-                                            if (!acc[r.emoji]) acc[r.emoji] = { count: 0, hasMe: false };
-                                            acc[r.emoji].count++;
-                                            if (r.user_id === currentUser?.id) acc[r.emoji].hasMe = true;
-                                            return acc;
-                                        }, {} as Record<string, { count: number, hasMe: boolean }>)
-                                    ).map(([emoji, data]) => (
-                                        <div
-                                            key={emoji}
-                                            onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
-                                            className={`flex items-center gap-1.5 px-2 py-[3px] rounded-full border border-zinc-700/60 cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-sm ${data.hasMe
-                                                    ? 'bg-purple-600 shadow-purple-500/20'
-                                                    : 'bg-zinc-800 hover:bg-zinc-700'
+                            <AnimatePresence>
+                                {msg.message_reactions && msg.message_reactions.length > 0 && (
+                                    <motion.div 
+                                        initial={{ scale: 0, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 0, opacity: 0 }}
+                                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                        className={`absolute -bottom-2.5 ${isMe ? '-left-1.5' : '-right-1.5'} flex items-center gap-1 z-20`}
+                                    >
+                                        {Object.entries(
+                                            msg.message_reactions.reduce((acc, r) => {
+                                                if (!acc[r.emoji]) acc[r.emoji] = { count: 0, hasMe: false };
+                                                acc[r.emoji].count++;
+                                                if (r.user_id === currentUser?.id) acc[r.emoji].hasMe = true;
+                                                return acc;
+                                            }, {} as Record<string, { count: number, hasMe: boolean }>)
+                                        ).map(([emoji, data]) => (
+                                            <div
+                                                key={emoji}
+                                                onClick={(e) => { e.stopPropagation(); setShowReactDetails(true); }}
+                                                style={{ width: data.count > 1 ? 'auto' : 'clamp(20px, 5vw, 24px)', height: 'clamp(20px, 5vw, 24px)' }}
+                                                className={`flex items-center justify-center ${data.count > 1 ? 'px-1.5' : ''} rounded-full cursor-pointer transition-transform hover:scale-110 active:scale-95 shadow-sm shadow-black/50 ${
+                                                    isMe ? 'bg-zinc-900 border border-zinc-800' : 'bg-black border border-zinc-800'
                                                 }`}
+                                            >
+                                                <span style={{ fontSize: 'clamp(11px, 3vw, 14px)' }} className="leading-none brightness-110 drop-shadow-sm">{emoji}</span>
+                                                {data.count > 1 && (
+                                                    <span style={{ fontSize: 'clamp(8px, 2vw, 10px)' }} className="font-bold tracking-wide ml-1 text-zinc-300">{data.count}</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            
+                            {/* ── Reaction Details Modal Overlay ── */}
+                            <AnimatePresence>
+                                {showReactDetails && msg.message_reactions && (
+                                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={(e) => { e.stopPropagation(); setShowReactDetails(false); }}>
+                                        <motion.div 
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-[min(320px,90vw)] bg-zinc-900 border border-zinc-800 rounded-[28px] shadow-2xl overflow-hidden flex flex-col"
                                         >
-                                            <span className="text-[14px] leading-none brightness-110 drop-shadow-sm">{emoji}</span>
-                                            {data.count > 1 && (
-                                                <span className={`text-[10px] font-bold tracking-wide mr-0.5 ${data.hasMe ? 'text-white' : 'text-zinc-300'}`}>{data.count}</span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                            <div className="px-5 py-4 border-b border-zinc-800/50 flex flex-col gap-1.5">
+                                                <div className="flex items-center justify-between">
+                                                    <h3 className="font-bold text-white text-lg tracking-tight">Reactions</h3>
+                                                    <button onClick={() => setShowReactDetails(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800/50 hover:bg-zinc-700 text-zinc-400 transition-colors">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4.5 h-4.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </button>
+                                                </div>
+                                                <div className="text-zinc-400 text-[13px] leading-snug line-clamp-2 pr-4 italic">
+                                                    "{msg.audio_url ? 'Voice Message' : msg.content}"
+                                                </div>
+                                            </div>
+                                            <div className="p-2 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'min(350px, 65vh)' }}>
+                                                {msg.message_reactions.map((r, i) => {
+                                                    const isMeReact = r.user_id === currentUser?.id;
+                                                    const user = isMeReact ? currentUser : displayUser;
+                                                    return (
+                                                        <div key={i} className="flex items-center justify-between p-3 rounded-[20px] hover:bg-zinc-800/40 transition-colors">
+                                                            <div className="flex items-center gap-3.5">
+                                                                <div className="w-10 h-10 rounded-full bg-zinc-800 overflow-hidden shrink-0 border border-zinc-700/50 shadow-sm">
+                                                                    {user?.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-sm">{user?.username?.[0]?.toUpperCase()}</div>}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-zinc-100 font-semibold text-[15px] leading-tight">{isMeReact ? 'You' : (user?.full_name || user?.username)}</span>
+                                                                    <span className="text-zinc-500 text-[12px] mt-0.5">Reacted {r.emoji}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[26px] drop-shadow-sm">{r.emoji}</span>
+                                                                {isMeReact && (
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            handleReaction(msg.id, r.emoji);
+                                                                            setShowReactDetails(false);
+                                                                        }}
+                                                                        className="px-3 py-1.5 rounded-xl bg-zinc-800/80 text-zinc-300 font-semibold text-[13px] hover:bg-red-500/10 hover:text-red-500 transition-colors ml-2"
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    </div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
 
@@ -385,13 +496,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                             animate={{ opacity: 1, scale: 1, y: 0 }}
                                             exit={{ opacity: 0, scale: 0.9, y: 6 }}
                                             transition={{ duration: 0.15, ease: "easeOut" }}
-                                            className="absolute bottom-full mb-3 left-0 z-[60] flex items-center gap-1.5 md:gap-2 px-2.5 py-2 bg-zinc-900 border border-zinc-700/60 rounded-[28px] shadow-2xl shadow-black/50 backdrop-blur-md"
+                                            className="absolute bottom-full mb-3 left-0 z-[60] flex items-center gap-1.5 px-2 py-1.5 bg-zinc-900 border border-zinc-700/60 rounded-[24px] shadow-2xl shadow-black/50 backdrop-blur-md"
                                         >
                                             {['❤️', '👍', '😂', '😮', '😢', '🙏'].map(emoji => (
                                                 <button
                                                     key={emoji}
                                                     onClick={(e) => { e.stopPropagation(); handleReaction(msg.id, emoji); }}
-                                                    className={`text-[22px] md:text-[26px] leading-none w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
+                                                    className={`text-[20px] md:text-[24px] leading-none w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full transition-all duration-200 hover:scale-[1.2] focus:outline-none ${(msg.message_reactions || []).some(r => r.user_id === currentUser?.id && r.emoji === emoji)
                                                             ? 'bg-zinc-800 ring-2 ring-purple-500 scale-[1.10] shadow-lg shadow-purple-500/20'
                                                             : ''
                                                         }`}
@@ -399,9 +510,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                                     {emoji}
                                                 </button>
                                             ))}
-                                            <div className="w-px h-6 md:h-7 bg-zinc-700 mx-0.5 md:mx-1"></div>
-                                            <button onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }} className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4.5 h-4.5 md:w-5 md:h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            <div className="w-px h-5 md:h-6 bg-zinc-700 mx-0.5"></div>
+                                            <button onClick={(e) => { e.stopPropagation(); setActiveReactMsg(null); }} className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/80 transition-colors">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 md:w-4.5 md:h-4.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                             </button>
                                         </motion.div>
                                     )}
@@ -444,6 +555,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                             </div>
                         )}
                     </div>
+
+                    {/* SyncScrollSpacer: Flawlessly pushes the chat UPWARDS like Instagram.
+                        It does this by expanding its height while simultaneously adjusting the scroll container
+                        by the EXACT same pixel amount every frame, freezing messages below it in place! */}
+                    <AnimatePresence>
+                        {msg.message_reactions && msg.message_reactions.length > 0 && (
+                            <SyncScrollSpacer />
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 {/* Right spacer for incoming messages */}

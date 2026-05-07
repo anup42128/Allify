@@ -114,7 +114,7 @@ export const MessagesPage = () => {
                             <ChatHeader user={displayUser} onBack={closeConversation} />
 
                             {/* Messages Area */}
-                            <div ref={scrollContainerRef} onScroll={() => handleReadReceipts(true)} className="flex-1 overflow-y-auto px-4 pt-2 pb-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
+                            <div id="chat-scroll-container" ref={scrollContainerRef} onScroll={() => handleReadReceipts(true)} className="flex-1 overflow-y-auto px-4 pt-2 pb-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
                                 {isLoadingMessages ? (
                                     <div className="flex flex-col justify-end min-h-full gap-2 py-4">
                                         {[...Array(6)].map((_, i) => (
