@@ -239,6 +239,7 @@ export const SignupPage = () => {
                                             className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${emailError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner`}
                                         />
                                     </div>
+                                    <p className="text-[11px] text-zinc-500 ml-2">Your privacy is our priority. We'll keep your email safe.</p>
                                     {emailError && (
                                         <p className="text-[11px] md:text-xs text-red-400 ml-2">{emailError}</p>
                                     )}
@@ -276,6 +277,7 @@ export const SignupPage = () => {
                                             )}
                                         </button>
                                     </div>
+                                    <p className="text-[11px] text-zinc-500 ml-2">Create a strong password.</p>
                                     {passwordError && (
                                         <p className="text-xs text-red-400 ml-2">{passwordError}</p>
                                     )}

@@ -135,7 +135,7 @@ export const LoginPage = () => {
                                 <div className="relative group">
                                     <input
                                         type="text"
-                                        placeholder="Email or Username"
+                                        placeholder="Email address or Username"
                                         value={identifier}
                                         autoComplete="off"
                                         onChange={(e) => {
