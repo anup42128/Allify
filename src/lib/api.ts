@@ -14,7 +14,7 @@ export const api = {
         return { status: 'ok' };
     },
 
-    checkResetPermission: async (deviceId: string, action: string = "request", checkOnly: boolean = false) => {
+    checkResetPermission: async (_deviceId: string, _action: string = "request", _checkOnly: boolean = false) => {
         // Default to allowed. The old localhost fetch was triggering Chrome's 
         // "Access other apps and services" security warning on the live website.
         return { status: "allowed" };
