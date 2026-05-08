@@ -57,6 +57,7 @@ export const EditProfilePage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const [tempImage, setTempImage] = useState<string | null>(null);
+    const [pendingAvatar, setPendingAvatar] = useState<{ action: 'none' | 'remove' | 'update', blob?: Blob, previewUrl?: string }>({ action: 'none' });
     const [editFormData, setEditFormData] = useState({
         username: '',
         full_name: '',
@@ -117,26 +118,8 @@ export const EditProfilePage = () => {
         fileInputRef.current?.click();
     };
 
-    const handleRemoveAvatar = async () => {
-        const previousAvatarUrl = profile?.avatar_url;
-        setIsUploading(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.user) throw new Error("No session found");
-
-            if (previousAvatarUrl) {
-                const path = getStoragePath(previousAvatarUrl);
-                if (path) await supabase.storage.from('avatars').remove([path]);
-            }
-
-            await supabase.from('profiles').update({ avatar_url: null }).eq('id', session.user.id);
-            setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
-            clearProfileCache();
-        } catch (err: any) {
-            console.error("Error removing avatar:", err.message);
-        } finally {
-            setIsUploading(false);
-        }
+    const handleRemoveAvatar = () => {
+        setPendingAvatar({ action: 'remove', previewUrl: undefined });
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,16 +177,47 @@ export const EditProfilePage = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) throw new Error("No session found");
 
+            let newAvatarUrl = profile?.avatar_url;
+
+            if (pendingAvatar.action === 'remove') {
+                if (profile?.avatar_url) {
+                    const path = getStoragePath(profile.avatar_url);
+                    if (path) await supabase.storage.from('avatars').remove([path]).catch(console.error);
+                }
+                newAvatarUrl = null;
+            } else if (pendingAvatar.action === 'update' && pendingAvatar.blob) {
+                const fileName = `${session.user.id}/${Date.now()}.jpg`;
+                const { error: uploadError } = await supabase.storage
+                    .from('avatars')
+                    .upload(fileName, pendingAvatar.blob, { contentType: 'image/jpeg', upsert: true });
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+                newAvatarUrl = publicUrl;
+
+                if (profile?.avatar_url) {
+                    const path = getStoragePath(profile.avatar_url);
+                    if (path) await supabase.storage.from('avatars').remove([path]).catch(console.error);
+                }
+            }
+
             const { error } = await supabase.from('profiles').update({
                 username: editFormData.username,
                 bio: editFormData.bio,
                 location: editFormData.location,
-                website: editFormData.website
+                website: editFormData.website,
+                ...(pendingAvatar.action !== 'none' ? { avatar_url: newAvatarUrl } : {})
             }).eq('id', session.user.id);
 
             if (error) throw error;
+            
+            if (pendingAvatar.action === 'update' && pendingAvatar.previewUrl) {
+                URL.revokeObjectURL(pendingAvatar.previewUrl);
+            }
+
             clearProfileCache();
-            navigate('/profile');
+            navigate('/profile', { state: { refresh: true } });
         } catch (err: any) {
             console.error("Error saving profile:", err.message);
             alert("Failed to save changes: " + err.message);
@@ -212,36 +226,10 @@ export const EditProfilePage = () => {
         }
     };
 
-    const handleCropComplete = async (croppedImage: Blob) => {
-        const previousAvatarUrl = profile?.avatar_url;
+    const handleCropComplete = (croppedImage: Blob) => {
+        const previewUrl = URL.createObjectURL(croppedImage);
+        setPendingAvatar({ action: 'update', blob: croppedImage, previewUrl });
         setTempImage(null);
-        setIsUploading(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.user) throw new Error("No session found");
-
-            const fileName = `${session.user.id}/${Date.now()}.jpg`;
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(fileName, croppedImage, { contentType: 'image/jpeg', upsert: true });
-
-            if (uploadError) throw uploadError;
-
-            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
-            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', session.user.id);
-
-            if (previousAvatarUrl) {
-                const path = getStoragePath(previousAvatarUrl);
-                if (path) supabase.storage.from('avatars').remove([path]).catch(console.error);
-            }
-
-            setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
-            clearProfileCache();
-        } catch (err: any) {
-            console.error("Error uploading avatar:", err.message);
-        } finally {
-            setIsUploading(false);
-        }
     };
 
     if (isLoading) {
@@ -253,21 +241,25 @@ export const EditProfilePage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white font-sans md:p-12 overflow-y-auto custom-scrollbar pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-12">
-            <div className="max-w-3xl mx-auto h-full md:h-auto">
+        <div className="bg-black text-white font-sans md:pb-0">
+            <div className="max-w-3xl mx-auto min-h-full flex flex-col border-x-0 md:border-x border-zinc-800/50">
                 <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="bg-black md:bg-zinc-900/50 md:border border-zinc-800 md:rounded-[2.5rem] overflow-hidden md:shadow-2xl flex flex-col min-h-full md:min-h-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col flex-1"
                 >
+                    {(() => {
+                        const currentAvatarUrl = pendingAvatar.action !== 'none' ? pendingAvatar.previewUrl : profile?.avatar_url;
+                        return (
+                            <>
                     {/* Header */}
-                    <div className="p-4 md:p-8 border-b border-zinc-800 flex items-center justify-between md:bg-zinc-900/50 sticky top-0 bg-black/80 backdrop-blur-xl z-20">
+                    <div className="p-4 md:px-8 md:py-6 border-b border-zinc-800 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-xl z-20">
                         <div>
                             <h2 className="text-white text-2xl md:text-3xl font-bold tracking-tight">Edit Profile</h2>
                             <p className="text-zinc-500 text-xs md:text-sm mt-1 font-medium">Customize your Allify presence</p>
                         </div>
                         <button
-                            onClick={() => navigate('/profile')}
+                            onClick={() => navigate('/profile', { state: { refresh: true } })}
                             className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-5 h-5 md:w-6 md:h-6">
@@ -277,13 +269,20 @@ export const EditProfilePage = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="p-4 md:p-8 space-y-6 md:space-y-12">
+                    <div className="p-4 md:p-8 space-y-6 md:space-y-12 pb-20 md:pb-8">
+                        {/* Playful Warning Banner */}
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-3 md:p-4">
+                            <p className="text-red-400 text-xs md:text-sm font-medium leading-relaxed">
+                                <strong className="font-black text-red-500 uppercase tracking-wide">Friendly reminder:</strong> Don't forget to click the <span className="text-white font-bold">Save Changes</span> button at the bottom after making any changes! Otherwise, your edits will not be saved.
+                            </p>
+                        </div>
+
                         {/* Avatar Section */}
                         <div className="flex flex-col items-center">
                             <div onClick={handleAvatarClick} className="relative group cursor-pointer">
                                 <div className="w-28 h-28 md:w-32 md:h-32 rounded-full bg-zinc-800 border-2 border-zinc-700 overflow-hidden relative">
-                                    {profile?.avatar_url ? (
-                                        <img src={profile.avatar_url} className="w-full h-full object-cover" />
+                                    {currentAvatarUrl ? (
+                                        <img src={currentAvatarUrl} className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-zinc-600">
                                             <svg viewBox="0 0 24 24" fill="currentColor" className="w-16 h-16"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
@@ -302,7 +301,7 @@ export const EditProfilePage = () => {
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
                             <div className="mt-4 md:mt-5 flex gap-3 md:gap-4">
-                                {profile?.avatar_url && (
+                                {currentAvatarUrl && (
                                     <button onClick={handleRemoveAvatar} className="px-5 py-2.5 bg-red-500/10 text-red-500 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-500/20 transition-colors">Remove</button>
                                 )}
                                 <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2.5 bg-zinc-800 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-zinc-700 transition-colors">Change</button>
@@ -407,8 +406,29 @@ export const EditProfilePage = () => {
                     </div>
 
                     {/* Footer */}
-                    <div className="p-4 md:p-8 border-t border-zinc-800 md:bg-zinc-900/50 flex gap-2 md:gap-4 mt-auto">
-                        <button onClick={() => navigate('/profile')} className="flex-1 py-2.5 md:py-4 bg-zinc-800 rounded-[14px] md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Discard</button>
+                    <div className="p-4 md:p-8 border-t border-b md:border-b-0 border-zinc-800 flex gap-2 md:gap-4 mt-auto bg-black sticky bottom-0 z-30">
+                        {/* Scroll down hint */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: [0, 1, 1, 0] }}
+                            transition={{ duration: 7.5, times: [0, 0.05, 0.85, 1], ease: "easeInOut" }}
+                            className="absolute -top-20 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-40 pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,1)]"
+                        >
+                            <span className="text-[10px] md:text-xs font-black text-white uppercase tracking-[0.25em] drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]">
+                                Scroll to see more options
+                            </span>
+                            <motion.div
+                                animate={{ y: [0, 8, 0] }}
+                                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                                className="text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-6 h-6 md:w-8 md:h-8">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </motion.div>
+                        </motion.div>
+
+                        <button onClick={() => navigate('/profile', { state: { refresh: true } })} className="flex-1 py-2.5 md:py-4 bg-zinc-800 rounded-[14px] md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-all">Discard</button>
                         <button
                             onClick={handleSaveChanges}
                             disabled={!!editErrors.username || isCheckingUsername || isUploading}
@@ -417,6 +437,9 @@ export const EditProfilePage = () => {
                             {isUploading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
+                            </>
+                        );
+                    })()}
                 </motion.div>
             </div>
 

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthNavigation } from '../hooks/useAuthNavigation';
 import { supabase } from '../../../lib/supabase';
 import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
 import { SocialGraph } from '../../../components/ui/SocialGraph';
@@ -9,6 +10,7 @@ import { api } from '../../../lib/api';
 
 export const ForgotPasswordPage = () => {
     const navigate = useNavigate();
+    const navigateAuth = useAuthNavigation();
     const { setStep, setIdentity, resetFlow, generateToken } = useReset();
     const [identifier, setIdentifier] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -67,6 +69,8 @@ export const ForgotPasswordPage = () => {
     }, []);
 
     const handleSendOTP = async () => {
+        if (cooldownTimeLeft > 0) return;
+
         setIsLoading(true);
         setMessage(null);
 
@@ -170,7 +174,7 @@ export const ForgotPasswordPage = () => {
                 <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         <button
-                            onClick={() => navigate('/auth/login', { replace: true })}
+                            onClick={() => window.history.state && window.history.state.idx > 0 ? navigate(-1) : navigateAuth('/auth/login')}
                             className="absolute -top-14 md:top-0 left-4 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium whitespace-nowrap"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
@@ -247,7 +251,7 @@ export const ForgotPasswordPage = () => {
 
                                 <div className="text-center pt-2">
                                     <button
-                                        onClick={() => navigate('/auth/signup')}
+                                        onClick={() => navigateAuth('/auth/signup')}
                                         className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20 font-semibold text-sm md:text-base transition-all flex items-center justify-center mt-3"
                                     >
                                         <span>Don't have an account? <span className="text-indigo-300/60 font-medium ml-1.5">Create one.</span></span>

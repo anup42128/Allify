@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthNavigation } from '../hooks/useAuthNavigation';
 import { useNavigation } from '../contexts/SignupContext';
 import { supabase } from '../../../lib/supabase';
 import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
@@ -17,6 +18,7 @@ export const SignupPage = () => {
     const [emailError, setEmailError] = useState('');
     const [usernameError, setUsernameError] = useState('');
     const navigate = useNavigate();
+    const navigateAuth = useAuthNavigation();
     const { allowRoute, removeRoute, saveSignupFormData } = useNavigation();
 
     // Do NOT restore previous user's form data on mount for privacy reasons.
@@ -164,7 +166,7 @@ export const SignupPage = () => {
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         {/* Back Button */}
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => window.history.state && window.history.state.idx > 0 ? navigate(-1) : navigate('/')}
                             className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
@@ -327,7 +329,7 @@ export const SignupPage = () => {
                                     <p className="text-sm text-gray-400">
                                         Already have an account?{' '}
                                         <button
-                                            onClick={() => navigate('/auth/login')}
+                                            onClick={() => navigateAuth('/auth/login')}
                                             className="text-white hover:text-indigo-300 font-medium hover:underline transition-colors"
                                         >
                                             Log in

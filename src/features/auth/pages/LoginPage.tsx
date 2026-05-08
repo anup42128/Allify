@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthNavigation } from '../hooks/useAuthNavigation';
 import { supabase } from '../../../lib/supabase';
 import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
 import { SocialGraph } from '../../../components/ui/SocialGraph';
@@ -9,6 +10,7 @@ import { useNavigation } from '../contexts/SignupContext';
 export const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const navigateAuth = useAuthNavigation();
     const { allowRoute } = useNavigation();
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -99,7 +101,7 @@ export const LoginPage = () => {
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         {/* Back Button */}
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => window.history.state && window.history.state.idx > 0 ? navigate(-1) : navigate('/')}
                             className="absolute -top-10 md:top-0 left-0 md:left-6 text-gray-400 hover:text-white transition-colors flex items-center gap-2 group p-2 md:p-0 backdrop-blur-md md:backdrop-blur-none bg-white/[0.03] md:bg-transparent border border-white/5 md:border-transparent rounded-full md:rounded-none z-50 text-xs md:text-base pr-4 md:pr-0 font-medium"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 group-hover:-translate-x-1 transition-transform">
@@ -218,7 +220,7 @@ export const LoginPage = () => {
 
                                 <button
                                     type="button"
-                                    onClick={() => navigate('/auth/forgot-password')}
+                                    onClick={() => navigateAuth('/auth/forgot-password')}
                                     className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20 font-semibold text-sm md:text-base transition-all flex items-center justify-center mt-3"
                                 >
                                     <span>Forgot password? <span className="text-indigo-300/60 font-medium ml-1.5">No tension.</span></span>
@@ -237,7 +239,7 @@ export const LoginPage = () => {
                                     <p className="text-sm text-gray-400">
                                         New to Allify?{' '}
                                         <button
-                                            onClick={() => navigate('/auth/signup')}
+                                            onClick={() => navigateAuth('/auth/signup')}
                                             className="text-white hover:text-indigo-300 font-medium hover:underline transition-colors"
                                         >
                                             Create an account
