@@ -74,7 +74,7 @@ export const LoginPage = () => {
 
             // Success
             allowRoute('/home');
-            navigate('/home');
+            navigate('/profile');
 
         } catch (err) {
             console.error("Login error:", err);

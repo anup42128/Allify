@@ -117,7 +117,7 @@ export const ConfirmPage = () => {
 
             // Small delay to ensure allowedRoutes state propagates to ProtectedRoute
             setTimeout(() => {
-                navigate('/home', { replace: true });
+                navigate('/profile', { replace: true });
             }, 100);
         } catch (err) {
             console.error("Verification error:", err);
