@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { cachedMessages } from '../lib/chatStore';
 import type { Message } from '../types/chat';
@@ -35,17 +35,53 @@ export function useChatRealtime({
     const reactionChannelRef = useRef<any>(null);
 
     // ── Live Typing Indicator Ephemeral Channel ───────────────────────────────
+    // Minimum display time prevents the indicator from flickering during ultra-fast
+    // type-send bursts where typing:false arrives within ~80ms of typing:true.
+    const typingVisibleSinceRef = useRef<number>(0);
+    const typingDeferredFalseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const MIN_TYPING_DISPLAY_MS = 400;
+
+    const dismissTyping = useCallback(() => {
+        const elapsed = Date.now() - typingVisibleSinceRef.current;
+
+        if (typingDeferredFalseRef.current) {
+            clearTimeout(typingDeferredFalseRef.current);
+            typingDeferredFalseRef.current = null;
+        }
+
+        if (elapsed >= MIN_TYPING_DISPLAY_MS || typingVisibleSinceRef.current === 0) {
+            setIsTyping(false);
+        } else {
+            // Defer the dismissal until the minimum display time has elapsed
+            typingDeferredFalseRef.current = setTimeout(() => {
+                setIsTyping(false);
+                typingDeferredFalseRef.current = null;
+            }, MIN_TYPING_DISPLAY_MS - elapsed);
+        }
+    }, [setIsTyping]);
+
     useEffect(() => {
         if (!activeConvId || !currentUser?.id) return;
         
         setIsTyping(false); // Reset organically on conv change
+        typingVisibleSinceRef.current = 0;
         
         const channel = supabase.channel(`typing:room:${activeConvId}`);
 
         channel
             .on('broadcast', { event: 'typing' }, (payload) => {
                 if (payload.payload?.user_id !== currentUser.id) {
-                    setIsTyping(payload.payload?.typing ?? false);
+                    if (payload.payload?.typing) {
+                        // Show instantly on first keystroke — zero delay
+                        typingVisibleSinceRef.current = Date.now();
+                        if (typingDeferredFalseRef.current) {
+                            clearTimeout(typingDeferredFalseRef.current);
+                            typingDeferredFalseRef.current = null;
+                        }
+                        setIsTyping(true);
+                    } else {
+                        dismissTyping();
+                    }
                 }
             })
             .on('broadcast', { event: 'reaction_deleted' }, (payload) => {
@@ -67,8 +103,12 @@ export function useChatRealtime({
         return () => {
             supabase.removeChannel(channel);
             typingChannelRef.current = null;
+            if (typingDeferredFalseRef.current) {
+                clearTimeout(typingDeferredFalseRef.current);
+                typingDeferredFalseRef.current = null;
+            }
         };
-    }, [activeConvId, currentUser, setIsTyping]);
+    }, [activeConvId, currentUser, setIsTyping, dismissTyping]);
 
     // ── Subscribe to realtime messages & reactions globally ───────────────────
     useEffect(() => {
@@ -91,7 +131,7 @@ export function useChatRealtime({
                     
                     if (newMsg.conversation_id === activeConvIdRef.current) {
                         if (newMsg.sender_id !== currentUser.id) {
-                            setIsTyping(false);
+                            dismissTyping();
                         }
 
                         const isVisible = document.visibilityState === 'visible';
@@ -238,7 +278,7 @@ export function useChatRealtime({
                 reactionChannelRef.current = null;
             }
         };
-    }, [currentUser, fetchConversations, scrollToBottom, activeConvIdRef, setConversations, setInitialUnreadId, setIsTyping, setMessages, scrollContainerRef, handledUnreadScrollRef]);
+    }, [currentUser, fetchConversations, scrollToBottom, activeConvIdRef, setConversations, setInitialUnreadId, dismissTyping, setMessages, scrollContainerRef, handledUnreadScrollRef]);
 
     return { typingChannelRef };
 }

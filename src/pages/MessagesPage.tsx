@@ -195,11 +195,9 @@ export const MessagesPage = () => {
                                         <AnimatePresence>
                                             {isTyping && activeConvUser && (
                                                 <motion.div
-                                                    layout
                                                     initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                                                    animate={{ height: 'auto', opacity: 1, overflow: 'hidden' }}
-                                                    exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                                                    transition={{ duration: 0.3 }}
+                                                    animate={{ height: 'auto', opacity: 1, overflow: 'hidden', transition: { duration: 0.15 } }}
+                                                    exit={{ height: 0, opacity: 0, overflow: 'hidden', transition: { duration: 0.08 } }}
                                                 >
                                                     {/* Using padding instead of margins ensures it smoothly unrolls inside the hidden wrapper! */}
                                                     <div className="flex items-end gap-2 py-3 w-full">

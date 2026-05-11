@@ -178,14 +178,25 @@ export const SearchPage = () => {
                                                 <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 border border-zinc-700/50 relative">
                                                     {user.avatar_url ? (
                                                         <>
-                                                            <div id={`search-loader-recent-${user.id}`} className="absolute inset-0 animate-pulse bg-zinc-700/50 z-10" />
+                                                            <div className="absolute inset-0 animate-pulse bg-zinc-700/50 z-10" style={{ opacity: 1 }} />
                                                             <img 
                                                                 src={user.avatar_url} 
-                                                                alt={user.username} 
-                                                                className="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-20" 
+                                                                alt="" 
+                                                                decoding="async"
+                                                                className="w-full h-full object-cover relative z-20 transition-opacity duration-200" 
+                                                                style={{ opacity: 0 }}
                                                                 onLoad={(e) => {
-                                                                    (e.target as HTMLImageElement).classList.remove('opacity-0');
-                                                                    document.getElementById(`search-loader-recent-${user.id}`)?.classList.add('hidden');
+                                                                    const img = e.target as HTMLImageElement;
+                                                                    img.style.opacity = '1';
+                                                                    const skeleton = img.previousElementSibling as HTMLElement;
+                                                                    if (skeleton) skeleton.style.opacity = '0';
+                                                                }}
+                                                                onError={(e) => {
+                                                                    // On error, hide both the broken image and skeleton, show fallback
+                                                                    const img = e.target as HTMLImageElement;
+                                                                    img.style.display = 'none';
+                                                                    const skeleton = img.previousElementSibling as HTMLElement;
+                                                                    if (skeleton) skeleton.style.opacity = '0';
                                                                 }}
                                                             />
                                                         </>
@@ -247,14 +258,24 @@ export const SearchPage = () => {
                                     <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-800 flex-shrink-0 relative">
                                         {user.avatar_url ? (
                                             <>
-                                                <div id={`search-loader-result-${user.id}`} className="absolute inset-0 animate-pulse bg-zinc-700/50 z-10" />
+                                                <div className="absolute inset-0 animate-pulse bg-zinc-700/50 z-10" style={{ opacity: 1 }} />
                                                 <img 
                                                     src={user.avatar_url} 
-                                                    alt={user.username} 
-                                                    className="w-full h-full object-cover opacity-0 transition-opacity duration-300 relative z-20" 
+                                                    alt="" 
+                                                    decoding="async"
+                                                    className="w-full h-full object-cover relative z-20 transition-opacity duration-200" 
+                                                    style={{ opacity: 0 }}
                                                     onLoad={(e) => {
-                                                        (e.target as HTMLImageElement).classList.remove('opacity-0');
-                                                        document.getElementById(`search-loader-result-${user.id}`)?.classList.add('hidden');
+                                                        const img = e.target as HTMLImageElement;
+                                                        img.style.opacity = '1';
+                                                        const skeleton = img.previousElementSibling as HTMLElement;
+                                                        if (skeleton) skeleton.style.opacity = '0';
+                                                    }}
+                                                    onError={(e) => {
+                                                        const img = e.target as HTMLImageElement;
+                                                        img.style.display = 'none';
+                                                        const skeleton = img.previousElementSibling as HTMLElement;
+                                                        if (skeleton) skeleton.style.opacity = '0';
                                                     }}
                                                 />
                                             </>

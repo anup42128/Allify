@@ -27,9 +27,16 @@ export function useChatScroll({
     const isProgrammaticScrollRef = useRef(false);
     const handledUnreadScrollRef = useRef<string | null>(null);
     const handledBottomScrollRef = useRef<string | null>(null);
+    const pendingScrollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-        setTimeout(() => {
+        // Cancel any previous pending scroll to prevent competing animations during rapid messages
+        if (pendingScrollRef.current) {
+            clearTimeout(pendingScrollRef.current);
+        }
+
+        pendingScrollRef.current = setTimeout(() => {
+            pendingScrollRef.current = null;
             isProgrammaticScrollRef.current = true;
             if (messagesEndRef.current) {
                 messagesEndRef.current.scrollIntoView({ behavior });

@@ -271,11 +271,13 @@ export function useChatManager() {
         if (!container) return;
         const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
         if (distanceFromBottom < 200) {
-            // First scroll: starts moving immediately
+            // First call: initiates scroll immediately for responsiveness
             scrollToBottom('smooth');
-            // Second scroll: fires after Framer Motion's height:0→auto animation (150ms)
-            // so the container has its full height and we land at the very bottom.
-            setTimeout(() => scrollToBottom('smooth'), 200);
+            // Second call: fires AFTER the typing indicator's 150ms enter animation completes,
+            // so the scroll target accounts for the indicator's full expanded height.
+            // The scroll debouncer automatically cancels the first (premature) call.
+            const timer = setTimeout(() => scrollToBottom('smooth'), 180);
+            return () => clearTimeout(timer);
         }
     }, [isTyping, scrollToBottom, scrollContainerRef]);
 
