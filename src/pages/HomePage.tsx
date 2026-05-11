@@ -25,7 +25,7 @@ export const HomePage = () => {
                         </svg>
                         {unreadNotifCount > 0 && (
                             <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-black">
-                                {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                                {unreadNotifCount > 7 ? '7+' : unreadNotifCount}
                             </div>
                         )}
                     </Link>

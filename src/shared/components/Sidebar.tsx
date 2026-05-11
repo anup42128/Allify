@@ -183,7 +183,7 @@ export const Sidebar = () => {
                                         </div>
                                         {badgeCount > 0 && (
                                             <div className="absolute -top-1 -right-2 md:-right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-black">
-                                                {badgeCount > 9 ? '9+' : badgeCount}
+                                                {badgeCount > 7 ? '7+' : badgeCount}
                                             </div>
                                         )}
                                     </div>
@@ -191,7 +191,7 @@ export const Sidebar = () => {
                                         {item.label}
                                         {badgeCount > 0 && (
                                             <span className="bg-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                                                {badgeCount > 9 ? '9+' : badgeCount}
+                                                {badgeCount > 7 ? '7+' : badgeCount}
                                             </span>
                                         )}
                                     </span>

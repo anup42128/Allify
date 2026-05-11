@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { cachedMessages } from '../lib/chatStore';
+import { cachedMessages, cachedConversations, setCachedConversations } from '../lib/chatStore';
 import type { Message, Conversation } from '../types/chat';
 
 const generateId = () => {
@@ -128,15 +128,30 @@ export function useChatActions({
             });
 
             if (isLastMessage) {
-                setConversations(prev => prev.map(c =>
-                    c.id === activeConvId
-                        ? { ...c, last_message: newLastMsgContent, last_message_time: newLastMsgTime }
-                        : c
-                ).sort((a, b) => {
-                    if (!a.last_message_time) return 1;
-                    if (!b.last_message_time) return -1;
-                    return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
-                }));
+                setConversations(prev => {
+                    const nextConvs = prev.map(c =>
+                        c.id === activeConvId
+                            ? { ...c, last_message: newLastMsgContent, last_message_time: newLastMsgTime }
+                            : c
+                    ).sort((a, b) => {
+                        if (!a.last_message_time) return 1;
+                        if (!b.last_message_time) return -1;
+                        return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
+                    });
+                    return nextConvs;
+                });
+                
+                if (cachedConversations) {
+                    setCachedConversations(cachedConversations.map(c =>
+                        c.id === activeConvId
+                            ? { ...c, last_message: newLastMsgContent, last_message_time: newLastMsgTime }
+                            : c
+                    ).sort((a, b) => {
+                        if (!a.last_message_time) return 1;
+                        if (!b.last_message_time) return -1;
+                        return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
+                    }));
+                }
             }
 
             if (isLastMessage) {
@@ -160,7 +175,13 @@ export function useChatActions({
             }
 
             await supabase.from('messages').update({ content: '🚫 This message was unsent.' }).eq('id', msgId);
-            await supabase.from('messages').delete().eq('id', msgId);
+            
+            // Delay the hard deletion by 2.5 seconds to prevent a Postgres WAL race condition.
+            // If deleted instantly, the Realtime worker cannot evaluate RLS for the UPDATE payload (since the row is gone),
+            // which causes the badge decrement payload to be silently dropped for the recipient.
+            setTimeout(async () => {
+                await supabase.from('messages').delete().eq('id', msgId);
+            }, 2500);
 
             if (currentUser?.id) fetchConversations(currentUser.id);
         } catch (err) {
@@ -215,15 +236,30 @@ export function useChatActions({
                 });
             }
 
-            setConversations(prev => prev.map(c =>
-                c.id === activeConvId
-                    ? { ...c, last_message: '🎤 Voice message', last_message_time: new Date().toISOString() }
-                    : c
-            ).sort((a, b) => {
-                if (!a.last_message_time) return 1;
-                if (!b.last_message_time) return -1;
-                return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
-            }));
+            setConversations(prev => {
+                const newConvs = prev.map(c =>
+                    c.id === activeConvId
+                        ? { ...c, last_message: '🎤 Voice message', last_message_time: new Date().toISOString() }
+                        : c
+                ).sort((a, b) => {
+                    if (!a.last_message_time) return 1;
+                    if (!b.last_message_time) return -1;
+                    return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
+                });
+                return newConvs;
+            });
+            
+            if (cachedConversations) {
+                setCachedConversations(cachedConversations.map(c =>
+                    c.id === activeConvId
+                        ? { ...c, last_message: '🎤 Voice message', last_message_time: new Date().toISOString() }
+                        : c
+                ).sort((a, b) => {
+                    if (!a.last_message_time) return 1;
+                    if (!b.last_message_time) return -1;
+                    return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
+                }));
+            }
 
             const ext = audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
@@ -342,15 +378,30 @@ export function useChatActions({
         });
         scrollToBottom();
 
-        setConversations(prev => prev.map(c =>
-            c.id === activeConvId
-                ? { ...c, last_message: text, last_message_time: optimisticMsg.created_at }
-                : c
-        ).sort((a, b) => {
-            if (!a.last_message_time) return 1;
-            if (!b.last_message_time) return -1;
-            return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
-        }));
+        setConversations(prev => {
+            const newConvs = prev.map(c =>
+                c.id === activeConvId
+                    ? { ...c, last_message: text, last_message_time: optimisticMsg.created_at }
+                    : c
+            ).sort((a, b) => {
+                if (!a.last_message_time) return 1;
+                if (!b.last_message_time) return -1;
+                return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
+            });
+            return newConvs;
+        });
+        
+        if (cachedConversations) {
+            setCachedConversations(cachedConversations.map(c =>
+                c.id === activeConvId
+                    ? { ...c, last_message: text, last_message_time: optimisticMsg.created_at }
+                    : c
+            ).sort((a, b) => {
+                if (!a.last_message_time) return 1;
+                if (!b.last_message_time) return -1;
+                return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
+            }));
+        }
 
         try {
             const { error: msgError } = await supabase.from('messages').insert({

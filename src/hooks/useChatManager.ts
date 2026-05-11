@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getCachedConversations, cachedMessages, cachedForUserId, subscribeToChatUpdates, fetchGlobalConversations, updateCachedConversationsSilently } from '../lib/chatStore';
+import { getCachedConversations, cachedConversations, cachedMessages, cachedForUserId, subscribeToChatUpdates, fetchGlobalConversations, setCachedConversations, markConversationAsReadOptimistically, setCurrentlyViewingConvId } from '../lib/chatStore';
 import { initGlobalPresenceSync } from '../lib/presenceStore';
 import { useChatScroll } from './useChatScroll';
 import { useChatRealtime } from './useChatRealtime';
@@ -18,6 +18,11 @@ export function useChatManager() {
     const activeConvIdRef = useRef<string | null>(null);
     
     useEffect(() => { activeConvIdRef.current = activeConvId; }, [activeConvId]);
+    
+    useEffect(() => {
+        setCurrentlyViewingConvId(activeConvId);
+        return () => setCurrentlyViewingConvId(null);
+    }, [activeConvId]);
     
     const [messages, setMessages] = useState<Message[]>([]);
 
@@ -104,12 +109,6 @@ export function useChatManager() {
         });
         return () => { unsub(); };
     }, []);
-
-    useEffect(() => {
-        if (conversations.length > 0) {
-            updateCachedConversationsSilently(conversations);
-        }
-    }, [conversations]);
 
     useEffect(() => {
         const init = async () => {
@@ -214,14 +213,27 @@ export function useChatManager() {
             if (error) throw error;
 
             const fetched = data || [];
-            cachedMessages.set(convId, fetched);
-            setMessages(fetched);
+            
+            // Critical fix: Merge realtime messages that might not be in the DB response yet due to read-replica lag!
+            // If we just overwrite with 'fetched', we will erase the message we just received via the realtime websocket.
+            const existingCache = cachedMessages.get(convId) || [];
+            const merged = [...fetched];
+            
+            existingCache.forEach(cachedMsg => {
+                if (!merged.some(m => m.id === cachedMsg.id)) {
+                    merged.push(cachedMsg);
+                }
+            });
+            merged.sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-            const unreadId = fetched.find(m => !m.seen && m.sender_id !== currentUser?.id)?.id || null;
+            cachedMessages.set(convId, merged);
+            setMessages(merged);
+
+            const unreadId = merged.find(m => !m.seen && m.sender_id !== currentUser?.id)?.id || null;
             setInitialUnreadId(unreadId);
 
             if (currentUser?.id && unreadId) {
-                const locallySeenData = fetched.map(m =>
+                const locallySeenData = merged.map(m =>
                     (m.sender_id !== currentUser.id && !m.seen) ? { ...m, seen: true } : m
                 );
                 cachedMessages.set(convId, locallySeenData);
@@ -230,6 +242,11 @@ export function useChatManager() {
                 setConversations(prevConv => prevConv.map(c =>
                     c.id === convId ? { ...c, unread_count: 0 } : c
                 ));
+                if (cachedConversations) {
+                    setCachedConversations(cachedConversations.map(c =>
+                        c.id === convId ? { ...c, unread_count: 0 } : c
+                    ));
+                }
 
                 supabase
                     .from('messages')
@@ -313,6 +330,21 @@ export function useChatManager() {
         }
         setActiveConvId(conv.id);
         setActiveConvUser(conv.other_user);
+        
+        // Optimistically clear the unread UI count and glow instantly 
+        // without waiting for the backend to sync the read receipts.
+        if (conv.unread_count && conv.unread_count > 0) {
+            markConversationAsReadOptimistically(conv.id);
+            setConversations(prev => prev.map(c => 
+                c.id === conv.id ? { ...c, unread_count: 0 } : c
+            ));
+            if (cachedConversations) {
+                setCachedConversations(cachedConversations.map(c =>
+                    c.id === conv.id ? { ...c, unread_count: 0 } : c
+                ));
+            }
+        }
+        
         const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
         if (!isMobile) {
             setTimeout(() => inputRef.current?.focus(), 50);

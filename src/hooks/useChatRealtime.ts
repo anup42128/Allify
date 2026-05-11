@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { cachedMessages } from '../lib/chatStore';
-import type { Message, Participant } from '../types/chat';
+import type { Message } from '../types/chat';
 
 interface UseChatRealtimeOptions {
     currentUser: any;
@@ -149,51 +149,9 @@ export function useChatRealtime({
                         }
                     }
 
-                    setConversations(prev => {
-                        const exists = prev.some(c => c.id === newMsg.conversation_id);
-                        
-                        if (exists) {
-                            const isIncomingUnread = newMsg.sender_id !== currentUser.id && newMsg.conversation_id !== activeConvIdRef.current;
-                            return [...prev].map(c =>
-                                c.id === newMsg.conversation_id
-                                    ? { 
-                                        ...c, 
-                                        last_message: newMsg.content, 
-                                        last_message_time: newMsg.created_at,
-                                        unread_count: isIncomingUnread ? (c.unread_count || 0) + 1 : c.unread_count 
-                                      }
-                                    : c
-                            ).sort((a, b) => {
-                                if (!a.last_message_time) return 1;
-                                if (!b.last_message_time) return -1;
-                                return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
-                            });
-                        } else {
-                            if (newMsg.sender_id !== currentUser.id) {
-                                supabase.from('profiles').select('id, username, full_name, avatar_url').eq('id', newMsg.sender_id).single().then(({data}) => {
-                                    if (data) {
-                                        setConversations(p => {
-                                            if (p.some(c => c.id === newMsg.conversation_id)) return p;
-                                            return [{
-                                                id: newMsg.conversation_id,
-                                                last_message: newMsg.content,
-                                                last_message_time: newMsg.created_at,
-                                                other_user: data as Participant,
-                                                unread_count: 0
-                                            }, ...p].sort((a, b) => {
-                                                if (!a.last_message_time) return 1;
-                                                if (!b.last_message_time) return -1;
-                                                return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime();
-                                            });
-                                        });
-                                    }
-                                });
-                            } else {
-                                fetchConversations(currentUser.id);
-                            }
-                            return prev; 
-                        }
-                    });
+                    // Conversation list updates (unread counts, last message, new chats) are entirely handled 
+                    // by the global chatStore.ts realtime engine. This prevents race conditions where both 
+                    // this hook and the global store attempt to update the conversations array simultaneously.
                 } else if (payload.eventType === 'UPDATE') {
                     const updatedMsg = payload.new as Message;
                     if (updatedMsg.content === '🚫 This message was unsent.') {
@@ -202,7 +160,6 @@ export function useChatRealtime({
                         cachedMessages.forEach((msgs, convId) => {
                             cachedMessages.set(convId, msgs.filter(m => m.id !== deletedId));
                         });
-                        fetchConversations(currentUser.id);
                     } else {
                         setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m));
                         cachedMessages.forEach((msgs, convId) => {
@@ -215,7 +172,6 @@ export function useChatRealtime({
                     cachedMessages.forEach((msgs, convId) => {
                         cachedMessages.set(convId, msgs.filter(m => m.id !== deletedId));
                     });
-                    fetchConversations(currentUser.id);
                 }
             })
             .subscribe();

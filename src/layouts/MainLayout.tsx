@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../shared/components/Sidebar';
 import { supabase } from '../lib/supabase';
-import { initGlobalChatSync } from '../lib/chatStore';
+import { initGlobalChatSync, fetchGlobalConversations, activeSyncUserId } from '../lib/chatStore';
 import { initGlobalNotificationSync } from '../lib/notificationStore';
 import { initGlobalPresenceSync } from '../lib/presenceStore';
 import { SplashScreen } from '../components/ui/SplashScreen';
@@ -47,6 +47,19 @@ export const MainLayout = () => {
         };
         window.addEventListener('chat-active', handleChatActive);
         return () => window.removeEventListener('chat-active', handleChatActive);
+    }, []);
+
+    // Crucial for mobile: Re-sync completely when app comes back from background
+    // WebSockets drop when mobile browsers sleep. This catches missed messages instantly!
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && activeSyncUserId) {
+                fetchGlobalConversations(activeSyncUserId);
+                initGlobalNotificationSync(activeSyncUserId);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
     }, []);
 
     return (
