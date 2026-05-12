@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthNavigation } from '../hooks/useAuthNavigation';
 import { useNavigation } from '../contexts/SignupContext';
 import { supabase } from '../../../lib/supabase';
-import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
-import { SocialGraph } from '../../../components/ui/SocialGraph';
+
+import { PageTransitionWrapper } from '../../../components/ui/PageTransitionWrapper';
+
 
 export const SignupPage = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -152,17 +153,11 @@ export const SignupPage = () => {
         !passwordError; // Ensure no password error exists
 
     return (
-        <div className="min-h-[100svh] md:h-screen w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden">
-            {/* Background Elements - Fixed */}
-            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
-                <BackgroundGradient />
-                <SocialGraph />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
-            </div>
+        <PageTransitionWrapper>
 
             {/* Scrollable Overlay */}
-            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar z-10 isolate w-full">
+                <div className="min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         {/* Back Button */}
                         <button
@@ -176,17 +171,11 @@ export const SignupPage = () => {
                         </button>
 
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6 }}
                             className="space-y-6 md:space-y-6 mt-4 md:mt-12"
                         >
                             {/* Header Section */}
                             <div className="text-center space-y-1 md:space-y-1 mb-6 md:mb-6">
                                 <motion.h1
-                                    initial={{ scale: 0.9 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ duration: 0.5 }}
                                     className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-3xl mb-1 md:mb-2 leading-none"
                                 >
                                     Allify
@@ -206,7 +195,7 @@ export const SignupPage = () => {
                                         value={fullName}
                                         autoComplete="off"
                                         onChange={(e) => setFullName(e.target.value)}
-                                        className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
+                                        className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner"
                                     />
                                 </div>
 
@@ -220,7 +209,7 @@ export const SignupPage = () => {
                                             autoComplete="off"
                                             onChange={handleUsernameChange}
                                             maxLength={20}
-                                            className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${usernameError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner`}
+                                            className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${usernameError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner`}
                                         />
                                     </div>
                                     {usernameError && (
@@ -238,7 +227,7 @@ export const SignupPage = () => {
                                             autoComplete="off"
                                             onChange={handleEmailChange}
                                             onBlur={handleEmailBlur}
-                                            className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${emailError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner`}
+                                            className={`w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border ${emailError ? 'border-red-500/50' : 'border-white/5 md:border-white/10'} text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner`}
                                         />
                                     </div>
                                     <p className="text-[11px] text-zinc-500 ml-2">Your privacy is our priority. We'll keep your email safe.</p>
@@ -260,7 +249,7 @@ export const SignupPage = () => {
                                                 if (passwordError) setPasswordError('');
                                             }}
                                             onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
-                                            className="w-full px-4 md:px-5 py-3.5 pr-12 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
+                                            className="w-full px-4 md:px-5 py-3.5 pr-12 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner"
                                         />
                                         <button
                                             type="button"
@@ -289,7 +278,7 @@ export const SignupPage = () => {
                                     <button
                                         onClick={handleContinue}
                                         disabled={isLoading || !isFormValid}
-                                        className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-4"
+                                        className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-4"
                                     >
                                         {isLoading ? (
                                             <>
@@ -344,6 +333,6 @@ export const SignupPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageTransitionWrapper>
     );
 };

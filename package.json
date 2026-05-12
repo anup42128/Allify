@@ -13,6 +13,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@studio-freight/lenis": "^1.0.42",
     "@supabase/supabase-js": "^2.87.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.25",

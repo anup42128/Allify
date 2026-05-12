@@ -3,8 +3,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNavigation } from '../contexts/SignupContext';
 import { supabase } from '../../../lib/supabase';
-import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
-import { SocialGraph } from '../../../components/ui/SocialGraph';
+
+import { PageTransitionWrapper } from '../../../components/ui/PageTransitionWrapper';
+
 
 export const BirthdayPage = () => {
     const navigate = useNavigate();
@@ -179,7 +180,7 @@ export const BirthdayPage = () => {
                 <button
                     type="button"
                     onClick={handleClick}
-                    className={`w-full px-4 py-3 rounded-lg border text-left flex items-center justify-between transition-all outline-none ${disabled
+                    className={`w-full px-4 py-3 rounded-lg border text-left flex items-center justify-between transition outline-none ${disabled
                         ? 'bg-neutral-900/50 border-neutral-800 text-gray-600 cursor-not-allowed'
                         : !value
                             ? 'bg-neutral-900 border-white/40 text-white cursor-pointer hover:border-white shadow-[0_0_15px_-5px_rgba(255,255,255,0.1)]'
@@ -208,10 +209,7 @@ export const BirthdayPage = () => {
                             className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-6 md:hidden"
                             onClick={(e) => { e.stopPropagation(); setOpenDropdown(null); }}
                         >
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.15, ease: "easeOut" }}
+                            <motion.div
                                 className="bg-neutral-900 border border-white/10 rounded-2xl w-full max-w-[320px] max-h-[60vh] overflow-hidden flex flex-col shadow-2xl" 
                                 onClick={e => e.stopPropagation()}
                             >
@@ -233,7 +231,7 @@ export const BirthdayPage = () => {
                                             key={opt}
                                             type="button"
                                             onClick={(e) => handleOptionClick(opt, e)}
-                                            className={`w-full px-4 py-3 text-center rounded-xl transition-all mb-1 ${
+                                            className={`w-full px-4 py-3 text-center rounded-xl transition mb-1 ${
                                                 value === opt.toString() 
                                                     ? 'bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30' 
                                                     : 'text-gray-300 hover:bg-white/5 border border-transparent'
@@ -266,19 +264,11 @@ export const BirthdayPage = () => {
     };
 
     return (
-        <div
-            className="min-h-[100svh] md:h-screen w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden"
-            onClick={handleBackdropClick}
-        >
-            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
-                <BackgroundGradient />
-                <SocialGraph />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
-            </div>
+        <PageTransitionWrapper onClick={handleBackdropClick}>
 
             {/* Scrollable Overlay */}
-            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar z-10 isolate w-full">
+                <div className="min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0 flex flex-col items-center">
                         <button
                             onClick={(e) => { e.stopPropagation(); window.history.state && window.history.state.idx > 0 ? navigate(-1) : navigate('/auth/signup', { replace: true }); }}
@@ -291,9 +281,6 @@ export const BirthdayPage = () => {
                         </button>
 
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5 }}
                             className="mb-6 md:mb-8 mt-4 md:mt-8"
                         >
                             {/* Birthday Cake SVG - Robust Icon */}
@@ -314,9 +301,6 @@ export const BirthdayPage = () => {
                         </motion.div>
 
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
                             className="w-full space-y-4 md:space-y-6"
                         >
                             <div className="text-center mb-6 md:mb-8">
@@ -383,7 +367,7 @@ export const BirthdayPage = () => {
                             <button
                                 onClick={handleContinue}
                                 disabled={isLoading || !isFormValid}
-                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-0"
+                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-0"
                             >
                                 {isLoading ? (
                                     <>
@@ -406,7 +390,7 @@ export const BirthdayPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageTransitionWrapper>
 
     );
 };

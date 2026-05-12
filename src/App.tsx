@@ -30,41 +30,53 @@ const ResetLayout = () => (
   </ResetProvider>
 );
 
+import { useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/signup/birthday" element={<ProtectedRoute><BirthdayPage /></ProtectedRoute>} />
+        <Route path="/auth/signup/confirm" element={<ProtectedRoute><ConfirmPage /></ProtectedRoute>} />
+
+        {/* Reset Password Flow - Scoped Provider */}
+        <Route element={<ResetLayout />}>
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/reset-verify" element={<ResetVerifyPage />} />
+          <Route path="/auth/reset-password" element={<NewPasswordPage />} />
+        </Route>
+
+        {/* Main App Routes - Protected with Sidebar Layout */}
+        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/edit" element={<EditProfilePage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/messages" element={<MessagesPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/create" element={<CreatePage />} />
+          <Route path="/more" element={<MorePage />} />
+        </Route>
+
+        {/* Redirect /sample to /home for backwards compatibility */}
+        <Route path="/sample" element={<Navigate to="/home" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 function App() {
   return (
     <NavigationProvider>
       <Router basename="/Allify">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/auth/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />
-          <Route path="/auth/login" element={<LoginPage />} />
-          <Route path="/auth/signup/birthday" element={<ProtectedRoute><BirthdayPage /></ProtectedRoute>} />
-          <Route path="/auth/signup/confirm" element={<ProtectedRoute><ConfirmPage /></ProtectedRoute>} />
-
-          {/* Reset Password Flow - Scoped Provider */}
-          <Route element={<ResetLayout />}>
-            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/auth/reset-verify" element={<ResetVerifyPage />} />
-            <Route path="/auth/reset-password" element={<NewPasswordPage />} />
-          </Route>
-
-          {/* Main App Routes - Protected with Sidebar Layout */}
-          <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/profile/edit" element={<EditProfilePage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/messages" element={<MessagesPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/create" element={<CreatePage />} />
-            <Route path="/more" element={<MorePage />} />
-          </Route>
-
-          {/* Redirect /sample to /home for backwards compatibility */}
-          <Route path="/sample" element={<Navigate to="/home" replace />} />
-        </Routes>
+        <AnimatedRoutes />
       </Router>
     </NavigationProvider>
   );

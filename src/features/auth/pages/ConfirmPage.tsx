@@ -2,9 +2,10 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNavigation } from '../contexts/SignupContext';
-import { SocialGraph } from '../../../components/ui/SocialGraph';
-import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
+
+
 import { supabase } from '../../../lib/supabase';
+import { PageTransitionWrapper } from '../../../components/ui/PageTransitionWrapper';
 
 export const ConfirmPage = () => {
     const [code, setCode] = useState('');
@@ -127,16 +128,11 @@ export const ConfirmPage = () => {
     };
 
     return (
-        <div className="min-h-[100svh] md:h-screen w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden">
-            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
-                <BackgroundGradient />
-                <SocialGraph />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
-            </div>
+        <PageTransitionWrapper>
 
             {/* Scrollable Overlay */}
-            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar z-10 isolate w-full">
+                <div className="min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0 flex flex-col">
                         {/* Back Button */}
                         <button
@@ -151,27 +147,18 @@ export const ConfirmPage = () => {
 
                         {/* Allify Logo */}
                         <motion.h1
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6 }}
                             className="text-4xl md:text-5xl font-black tracking-tight mb-6 md:mb-8 pb-2 md:pb-2 text-center bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-white/40 mt-4 md:mt-8"
                         >
                             Allify
                         </motion.h1>
 
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
                             className="space-y-4 md:space-y-4"
                         >
                             {/* Success Icon and Message */}
                             <div className="flex flex-col items-center space-y-3 md:space-y-4 mb-4 md:mb-6">
                                 {/* Success Checkmark Circle */}
                                 <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ duration: 0.5, delay: 0.4, type: "spring" }}
                                     className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 md:w-10 md:h-10 text-green-500">
@@ -181,9 +168,6 @@ export const ConfirmPage = () => {
 
                                 {/* Success Message */}
                                 <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.6, delay: 0.6 }}
                                     className="text-center space-y-1.5 md:space-y-2"
                                 >
                                     <h2 className="text-lg md:text-xl font-semibold text-green-500">Verification Code Sent</h2>
@@ -206,7 +190,7 @@ export const ConfirmPage = () => {
                                     onChange={handleCodeChange}
                                     placeholder="000000"
                                     maxLength={6}
-                                    className="w-full px-4 py-3.5 md:py-4 rounded-2xl md:rounded-lg bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white text-center text-xl md:text-2xl font-mono tracking-[0.4em] md:tracking-[0.5em] placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-sm"
+                                    className="w-full px-4 py-3.5 md:py-4 rounded-2xl md:rounded-lg bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white text-center text-xl md:text-2xl font-mono tracking-[0.4em] md:tracking-[0.5em] placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-sm"
                                 />
                                 <p className="text-[11px] md:text-xs text-gray-500 text-center">Enter 6-digit code</p>
                                 {error && (
@@ -235,7 +219,7 @@ export const ConfirmPage = () => {
                             <button
                                 onClick={handleContinue}
                                 disabled={code.length !== 6 || isLoading}
-                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:bg-white/10 disabled:text-white/40 disabled:border disabled:border-white/10 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-0"
+                                className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition disabled:bg-white/10 disabled:text-white/40 disabled:border disabled:border-white/10 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-0"
                             >
                                 {isLoading ? (
                                     <>
@@ -260,7 +244,7 @@ export const ConfirmPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageTransitionWrapper>
 
     );
 };

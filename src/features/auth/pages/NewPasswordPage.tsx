@@ -2,9 +2,10 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
-import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
-import { SocialGraph } from '../../../components/ui/SocialGraph';
+
+
 import { useReset } from '../contexts/ResetContext';
+import { PageTransitionWrapper } from '../../../components/ui/PageTransitionWrapper';
 
 export const NewPasswordPage = () => {
     const navigate = useNavigate();
@@ -71,40 +72,26 @@ export const NewPasswordPage = () => {
     };
 
     return (
-        <div className="min-h-[100svh] md:h-screen w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden">
-            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
-                <BackgroundGradient />
-                <SocialGraph />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
-            </div>
+        <PageTransitionWrapper>
 
             {/* Scrollable Overlay */}
-            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar transform-gpu z-10 isolate w-full">
+                <div className="min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
                     <div className="w-full max-w-md z-10 relative mt-4 md:mt-0">
 
                         {/* Allify Logo */}
                         <motion.h1
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6 }}
                             className="text-5xl md:text-5xl font-black tracking-tight mb-6 md:mb-8 pb-4 text-center text-white drop-shadow-3xl mt-6 md:mt-8 md:leading-none"
                         >
                             Allify
                         </motion.h1>
 
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
                             className="space-y-4 md:space-y-4"
                         >
                             {/* Key Icon and Message */}
                             <div className="flex flex-col items-center space-y-4 mb-6 md:mb-6">
                                 <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ duration: 0.5, delay: 0.4, type: "spring" }}
                                     className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 md:w-10 md:h-10 text-indigo-400">
@@ -113,9 +100,6 @@ export const NewPasswordPage = () => {
                                 </motion.div>
 
                                 <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.6, delay: 0.6 }}
                                     className="text-center space-y-2"
                                 >
                                     <h2 className="text-xl font-semibold text-white">Create New Password</h2>
@@ -138,7 +122,7 @@ export const NewPasswordPage = () => {
                                             placeholder="New Password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
+                                            className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner"
                                         />
                                         <button
                                             type="button"
@@ -163,7 +147,7 @@ export const NewPasswordPage = () => {
                                             placeholder="Confirm New Password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner"
+                                            className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner"
                                         />
                                         <button
                                             type="button"
@@ -186,8 +170,6 @@ export const NewPasswordPage = () => {
 
                                 {error && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
                                         className="bg-red-500/10 border border-red-500/20 rounded-lg p-3"
                                     >
                                         <p className="text-xs text-red-400 text-center">
@@ -199,7 +181,7 @@ export const NewPasswordPage = () => {
                                 <button
                                     onClick={handleUpdatePassword}
                                     disabled={isLoading || !password || !confirmPassword}
-                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4"
                                 >
                                     {isLoading ? (
                                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -224,7 +206,7 @@ export const NewPasswordPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageTransitionWrapper>
 
     );
 };

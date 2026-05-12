@@ -3,10 +3,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthNavigation } from '../hooks/useAuthNavigation';
 import { supabase } from '../../../lib/supabase';
-import { BackgroundGradient } from '../../../components/ui/BackgroundGradient';
-import { SocialGraph } from '../../../components/ui/SocialGraph';
+
+
 import { useReset } from '../contexts/ResetContext';
 import { api } from '../../../lib/api';
+import { PageTransitionWrapper } from '../../../components/ui/PageTransitionWrapper';
 
 export const ForgotPasswordPage = () => {
     const navigate = useNavigate();
@@ -162,16 +163,11 @@ export const ForgotPasswordPage = () => {
     };
 
     return (
-        <div className="min-h-[100svh] md:h-screen w-full bg-black text-white relative selection:bg-indigo-500/30 md:overflow-hidden overflow-x-hidden">
-            <div className="fixed md:absolute top-0 left-0 w-full h-[100vh] md:h-full z-0 pointer-events-none">
-                <BackgroundGradient />
-                <SocialGraph />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80" />
-            </div>
+        <PageTransitionWrapper>
 
             {/* Scrollable Overlay */}
-            <div className="relative md:absolute inset-0 md:overflow-y-auto overflow-x-hidden custom-scrollbar z-10 w-full min-h-[100svh]">
-                <div className="min-h-[100svh] md:min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar z-10 isolate w-full">
+                <div className="min-h-full w-full flex flex-col items-center justify-center px-4 py-8 md:p-6">
                     <div className="w-full max-w-md z-10 relative mt-10 md:mt-0">
                         <button
                             onClick={() => window.history.state && window.history.state.idx > 0 ? navigate(-1) : navigateAuth('/auth/login')}
@@ -184,16 +180,10 @@ export const ForgotPasswordPage = () => {
                         </button>
 
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6 }}
                             className="space-y-4 md:space-y-4 mt-4 md:mt-12"
                         >
                             <div className="text-center space-y-1 md:space-y-1 mb-6 md:mb-6">
                                 <motion.h1
-                                    initial={{ scale: 0.9 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ duration: 0.5 }}
                                     className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-3xl mb-1 md:mb-2 leading-none"
                                 >
                                     Allify
@@ -212,14 +202,12 @@ export const ForgotPasswordPage = () => {
                                         value={identifier}
                                         onChange={(e) => setIdentifier(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSendOTP()}
-                                        className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-all backdrop-blur-md shadow-inner text-center md:text-left"
+                                        className="w-full px-4 md:px-5 py-3.5 rounded-2xl md:rounded-xl bg-white/[0.03] md:bg-white/5 border border-white/5 md:border-white/10 text-white placeholder-zinc-500 md:placeholder-gray-400 text-sm md:text-base focus:outline-none focus:border-indigo-500/50 focus:bg-white/10 transition backdrop-blur-md shadow-inner text-center md:text-left"
                                     />
                                 </div>
 
                                 {message && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
                                         className={`${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'} border rounded-lg p-3`}
                                     >
                                         <p className={`text-xs ${message.type === 'success' ? 'text-emerald-400' : 'text-red-400'} text-center`}>
@@ -231,7 +219,7 @@ export const ForgotPasswordPage = () => {
                                 <button
                                     onClick={handleSendOTP}
                                     disabled={isLoading || !identifier.trim() || cooldownTimeLeft > 0}
-                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-4"
+                                    className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-white text-black font-bold text-base md:text-lg hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 shadow-[0_0_15px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.4)] mt-4 md:mt-4"
                                 >
                                     {isLoading ? (
                                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -252,7 +240,7 @@ export const ForgotPasswordPage = () => {
                                 <div className="text-center pt-2">
                                     <button
                                         onClick={() => navigateAuth('/auth/signup')}
-                                        className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20 font-semibold text-sm md:text-base transition-all flex items-center justify-center mt-3"
+                                        className="w-full px-6 md:px-8 py-3.5 md:py-4 rounded-[20px] md:rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 hover:text-white hover:bg-indigo-500/20 font-semibold text-sm md:text-base transition flex items-center justify-center mt-3"
                                     >
                                         <span>Don't have an account? <span className="text-indigo-300/60 font-medium ml-1.5">Create one.</span></span>
                                     </button>
@@ -272,7 +260,7 @@ export const ForgotPasswordPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </PageTransitionWrapper>
 
     );
 };
