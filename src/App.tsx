@@ -37,7 +37,7 @@ const AnimatedRoutes = () => {
   const location = useLocation();
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location}>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/signup" element={<ProtectedRoute><SignupPage /></ProtectedRoute>} />

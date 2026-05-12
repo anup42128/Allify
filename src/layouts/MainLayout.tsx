@@ -7,14 +7,21 @@ import { initGlobalNotificationSync } from '../lib/notificationStore';
 import { initGlobalPresenceSync } from '../lib/presenceStore';
 import { SplashScreen } from '../components/ui/SplashScreen';
 
+// Track if the splash screen has been shown in the current browser session
+let hasShownSplash = false;
+
 export const MainLayout = () => {
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
-    const [isAppReady, setIsAppReady] = useState(false);
+    // If it has been shown once, don't show it again until refresh
+    const [isAppReady, setIsAppReady] = useState(hasShownSplash);
 
     useEffect(() => {
         const initializeApp = async () => {
-            // Ensure the splash screen is visible long enough to play its animation and feel deliberate (2 seconds)
-            const minDisplayPromise = new Promise(resolve => setTimeout(resolve, 2000));
+            // If we've already shown the splash, we still need to fetch data
+            // but we can do it without the 2-second delay
+            const minDisplayPromise = hasShownSplash 
+                ? Promise.resolve() 
+                : new Promise(resolve => setTimeout(resolve, 2000));
             
             try {
                 const { data } = await supabase.auth.getUser();
@@ -34,6 +41,7 @@ export const MainLayout = () => {
                 console.error("[MainLayout] Initialization failed:", error);
             } finally {
                 setIsAppReady(true);
+                hasShownSplash = true;
             }
         };
 
