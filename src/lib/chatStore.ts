@@ -27,7 +27,16 @@ const loadCache = (userId: string): Conversation[] | null => {
 
 const persistCache = (c: Conversation[], userId: string | null) => {
     if (!userId) return;
-    try { localStorage.setItem(CACHE_KEY(userId), JSON.stringify(c)); } catch {}
+    try { 
+        // DO NOT save optimistic drafts or empty conversations to localStorage. 
+        // This ensures they persist during in-app navigation but vanish on hard refresh/reopen.
+        const realAndNonEmpty = c.filter(conv => {
+            if (conv.id.startsWith('optimistic_')) return false;
+            if (!conv.last_message || conv.last_message.trim() === '' || conv.last_message === '🚫 This message was unsent.') return false;
+            return true;
+        });
+        localStorage.setItem(CACHE_KEY(userId), JSON.stringify(realAndNonEmpty)); 
+    } catch {}
 };
 
 // ─── Global State Variables ────────────────────────────────────────────────────────
@@ -35,9 +44,26 @@ export let activeSyncUserId: string | null = null;
 export let cachedForUserId = _currentSessionUserId;  // exposed and mutable so components can validate stale cache
 export let cachedConversations: Conversation[] | null = _currentSessionUserId ? loadCache(_currentSessionUserId) : null;
 export const cachedMessages = new Map<string, Message[]>();
+
+// ATOMIC BADGE TRACKING SYSTEM
+// Instead of +1/-1 math which causes race conditions, we track EXACT unread message IDs.
+export const unreadMessageIdsByConv = new Map<string, Set<string>>();
+export const globallyDeletedMessageIds = new Set<string>();
+
+export const clearUnreadMessageIdsForConversation = (convId: string) => {
+    if (unreadMessageIdsByConv.has(convId)) {
+        unreadMessageIdsByConv.get(convId)!.clear();
+    }
+};
+
 export let currentlyViewingConvId: string | null = null;
+export let currentlyViewingUserId: string | null = null;
+
 export const setCurrentlyViewingConvId = (id: string | null) => {
     currentlyViewingConvId = id;
+};
+export const setCurrentlyViewingUserId = (id: string | null) => {
+    currentlyViewingUserId = id;
 };
 
 // Track conversations marked read locally to prevent slow DB fetches from reverting them
@@ -47,12 +73,6 @@ export const markConversationAsReadOptimistically = (convId: string) => {
     optimisticallyReadConvs.set(convId, Date.now());
 };
 
-// Track conversations marked UNREAD via realtime to prevent slow DB fetches from erasing the badge
-export const optimisticallyUnreadConvs = new Map<string, { time: number, count: number }>();
-
-export const markConversationAsUnreadOptimistically = (convId: string, count: number) => {
-    optimisticallyUnreadConvs.set(convId, { time: Date.now(), count });
-};
 
 let fallbackFetchTimeout: ReturnType<typeof setTimeout> | null = null;
 const scheduleFallbackFetch = (userId: string) => {
@@ -92,6 +112,25 @@ export const updateCachedConversationsSilently = (c: Conversation[], userId?: st
     }
 };
 
+export const upgradeOptimisticConversation = (oldId: string, newId: string) => {
+    if (cachedConversations) {
+        const updatedConvs = cachedConversations.map(c => 
+            c.id === oldId ? { ...c, id: newId } : c
+        );
+        updateCachedConversationsSilently(updatedConvs);
+    }
+    
+    if (cachedMessages.has(oldId)) {
+        const msgs = cachedMessages.get(oldId)!;
+        cachedMessages.set(newId, msgs.map(m => ({ ...m, conversation_id: newId })));
+        cachedMessages.delete(oldId);
+    }
+    
+    if (currentlyViewingConvId === oldId) {
+        currentlyViewingConvId = newId;
+    }
+};
+
 export const getCachedConversations = () => cachedConversations;
 
 // ─── Centralized Database Fetcher ────────────────────────────────────────────────
@@ -103,8 +142,13 @@ export const fetchGlobalConversations = async (userId: string) => {
             .select('conversation_id')
             .eq('user_id', userId);
 
+        const existingOptimistic = cachedConversations?.filter(c => c.id.startsWith('optimistic_')) || [];
+        const existingEmptyReal = cachedConversations?.filter(c => 
+            !c.id.startsWith('optimistic_') && (!c.last_message || c.last_message.trim() === '' || c.last_message === '🚫 This message was unsent.')
+        ) || [];
+
         if (!participantRows || participantRows.length === 0) {
-            setCachedConversations([], userId);
+            setCachedConversations([...existingOptimistic, ...existingEmptyReal], userId);
             return;
         }
 
@@ -117,24 +161,37 @@ export const fetchGlobalConversations = async (userId: string) => {
             .order('last_message_time', { ascending: false, nullsFirst: false });
 
         if (!convData || convData.length === 0) {
-            setCachedConversations([], userId);
+            setCachedConversations([...existingOptimistic, ...existingEmptyReal], userId);
             return;
         }
 
         const { data: unreadData } = await supabase
             .from('messages')
-            .select('conversation_id')
+            .select('id, conversation_id')
             .eq('seen', false)
             .neq('sender_id', userId)
             .in('conversation_id', convIds);
         
-        const unreadMap = new Map<string, number>();
+        // We rebuild the unread exact IDs mapping from the DB fetch,
+        // while perfectly respecting any messages that were DELETED via realtime BEFORE the DB caught up!
+        const newUnreadMessageIds = new Map<string, Set<string>>();
+        
         if (unreadData) {
             unreadData.forEach(row => {
-                unreadMap.set(row.conversation_id, (unreadMap.get(row.conversation_id) || 0) + 1);
+                if (globallyDeletedMessageIds.has(row.id)) return; // Reject ghost messages from slow replicas
+                
+                if (!newUnreadMessageIds.has(row.conversation_id)) {
+                    newUnreadMessageIds.set(row.conversation_id, new Set());
+                }
+                newUnreadMessageIds.get(row.conversation_id)!.add(row.id);
             });
         }
-
+        
+        // Atomically commit the updated Set to the global state
+        unreadMessageIdsByConv.clear();
+        for (const [k, v] of newUnreadMessageIds) {
+            unreadMessageIdsByConv.set(k, v);
+        }
         const enriched: Conversation[] = [];
         for (const conv of convData) {
             const { data: allParticipants } = await supabase
@@ -153,21 +210,9 @@ export const fetchGlobalConversations = async (userId: string) => {
 
             if (!otherProfile) continue;
 
-            // If we optimistically marked this conversation as unread via realtime, 
-            // protect it from being erased by a stale DB read replica!
-            let finalUnreadCount = unreadMap.get(conv.id) || 0;
-            const optimisticUnread = optimisticallyUnreadConvs.get(conv.id);
-            if (optimisticUnread && Date.now() - optimisticUnread.time < 15000) {
-                if (Date.now() - optimisticUnread.time < 5000) {
-                    // Lock is very fresh (< 5s). Unconditionally trust it!
-                    // This prevents lagging read-replicas from corrupting the badge during rapid delete operations where the mathematical lock DECREASES.
-                    finalUnreadCount = optimisticUnread.count;
-                } else if (optimisticUnread.count > finalUnreadCount) {
-                    // Lock is older (5s - 15s). Only trust it if it's GREATER than the DB.
-                    // This protects against missed INSERT events, but allows the DB to correct any stuck locks.
-                    finalUnreadCount = optimisticUnread.count;
-                }
-            }
+            // ATOMIC TRUE UNREAD COUNT
+            // Based exactly on the specific message IDs we know are currently unread, ignoring any fast-deleted messages!
+            let finalUnreadCount = unreadMessageIdsByConv.get(conv.id)?.size || 0;
 
             // If we optimistically marked this conversation as read within the last 15 seconds, 
             // ignore the database's stale unread count (prevents race conditions flashing the badge)
@@ -198,10 +243,28 @@ export const fetchGlobalConversations = async (userId: string) => {
             }
         }
 
-        // Show a conversation if it has at least one message, OR if the current user initiated it (cross-device sync via DB!)
+        // Clean up empty conversations on refresh by only accepting non-empty ones from the DB fetch
         const finalConvs = [...seen.values()].filter(c =>
-            (c.last_message && c.last_message.trim() !== '') || c.initiated_by === userId
+            (c.last_message && c.last_message.trim() !== '') && c.last_message !== '🚫 This message was unsent.'
         );
+
+        // PRESERVE IN-MEMORY STATE: If the user initiated a chat or emptied a chat,
+        // we must preserve it in the UI so it doesn't disappear during SPA navigation/background sync!
+        // We look at our existing in-memory cache to find these special cases.
+        for (const optConv of existingOptimistic) {
+            if (!finalConvs.some(realConv => realConv.other_user.id === optConv.other_user.id)) {
+                finalConvs.push(optConv);
+            }
+        }
+
+        // Also preserve empty real chats that are currently active in the user's session
+        for (const emptyConv of existingEmptyReal) {
+            if (!finalConvs.some(realConv => realConv.id === emptyConv.id)) {
+                finalConvs.push(emptyConv);
+            }
+        }
+
+        finalConvs.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime());
         setCachedConversations(finalConvs, userId);
     } catch (e) {
         console.error('Error in global fetch:', e);
@@ -243,6 +306,8 @@ export const initGlobalChatSync = async (userId: string) => {
             // ─── OPTIMISTIC INSTANT CACHE UPDATE ───
             let foundInCache = false;
             
+            if (globallyDeletedMessageIds.has(newMsg.id)) return;
+
             // Globally cache the actual message so it's instantly available if the user opens the chat!
             if (cachedMessages.has(newMsg.conversation_id)) {
                 const existingMsgs = cachedMessages.get(newMsg.conversation_id)!;
@@ -253,14 +318,22 @@ export const initGlobalChatSync = async (userId: string) => {
                 cachedMessages.set(newMsg.conversation_id, [newMsg]);
             }
 
+            const isCurrentlyViewing = (currentlyViewingConvId === newMsg.conversation_id || currentlyViewingUserId === newMsg.sender_id) && document.visibilityState === 'visible';
+            const isUnread = newMsg.sender_id !== userId && !isCurrentlyViewing;
+
+            if (isUnread) {
+                if (!unreadMessageIdsByConv.has(newMsg.conversation_id)) {
+                    unreadMessageIdsByConv.set(newMsg.conversation_id, new Set());
+                }
+                unreadMessageIdsByConv.get(newMsg.conversation_id)!.add(newMsg.id);
+            }
+
+            const newUnreadCount = isCurrentlyViewing ? 0 : (unreadMessageIdsByConv.get(newMsg.conversation_id)?.size || 0);
+
             if (cachedConversations) {
                 const updated = cachedConversations.map(c => {
                     if (c.id === newMsg.conversation_id) {
                         foundInCache = true;
-                        const isCurrentlyViewing = currentlyViewingConvId === newMsg.conversation_id && document.visibilityState === 'visible';
-                        const incomingUnread = (newMsg.sender_id !== userId && !isCurrentlyViewing) ? 1 : 0;
-                        const newUnreadCount = isCurrentlyViewing ? 0 : (c.unread_count + incomingUnread);
-                        markConversationAsUnreadOptimistically(newMsg.conversation_id, newUnreadCount);
                         
                         return {
                             ...c,
@@ -280,16 +353,13 @@ export const initGlobalChatSync = async (userId: string) => {
 
             // If it's a brand new conversation from an unknown sender, construct the chat card on the fly instantly!
             if (!foundInCache) {
-                // Fix Issue 2: Aggregate rapid incoming messages into the unread lock
-                const existingLock = optimisticallyUnreadConvs.get(newMsg.conversation_id);
-                let currentLockCount = 0;
-                if (existingLock && Date.now() - existingLock.time < 15000) {
-                    currentLockCount = existingLock.count;
+                // HARD CONSTRAINT: Never create a chat card if the sender is the current user!
+                // If I sent the first message, my client handles the routing. We must not create a ghost self-chat card.
+                if (newMsg.sender_id === userId) {
+                    return; // Ignore - do not create a self-chat card
                 }
-                const isCurrentlyViewing = currentlyViewingConvId === newMsg.conversation_id && document.visibilityState === 'visible';
-                const incomingUnread = (newMsg.sender_id !== userId && !isCurrentlyViewing) ? 1 : 0;
-                const aggregatedUnread = isCurrentlyViewing ? 0 : (currentLockCount + incomingUnread);
-                markConversationAsUnreadOptimistically(newMsg.conversation_id, aggregatedUnread);
+
+
                 
                 // Fix Issue 1: Fetch ONLY the sender's profile to instantly build the chat card without a massive global fetch
                 (async () => {
@@ -301,11 +371,15 @@ export const initGlobalChatSync = async (userId: string) => {
                             .single();
                             
                         if (profile && cachedConversations) {
-                            // Read absolute latest lock to prevent out-of-order async overwrites
-                            const latestLock = optimisticallyUnreadConvs.get(newMsg.conversation_id);
-                            const finalCountToInject = latestLock ? latestLock.count : aggregatedUnread;
+                            // ATOMIC BADGE COUNT: use exact count from atomic memory Set
+                            const finalCountToInject = unreadMessageIdsByConv.get(newMsg.conversation_id)?.size || 0;
 
-                            if (!cachedConversations.some(c => c.id === newMsg.conversation_id)) {
+                            // CLIENT-SIDE DEDUPLICATION PRE-CHECK
+                            // Even if this specific conversation_id is new to the cache, we MUST verify
+                            // that we don't already have a conversation with this exact sender.
+                            const existingConvWithSender = cachedConversations.find(c => c.other_user?.id === newMsg.sender_id);
+
+                            if (!existingConvWithSender && !cachedConversations.some(c => c.id === newMsg.conversation_id)) {
                                 const newConv: Conversation = {
                                     id: newMsg.conversation_id,
                                     last_message: newMsg.content,
@@ -317,9 +391,9 @@ export const initGlobalChatSync = async (userId: string) => {
                                 const updated = [...cachedConversations, newConv];
                                 updated.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime());
                                 setCachedConversations(updated);
-                            } else {
+                            } else if (existingConvWithSender || cachedConversations.some(c => c.id === newMsg.conversation_id)) {
                                 const updated = cachedConversations.map(c => {
-                                    if (c.id === newMsg.conversation_id) {
+                                    if (c.id === newMsg.conversation_id || c.other_user?.id === newMsg.sender_id) {
                                         const isNewer = new Date(newMsg.created_at || 0) >= new Date(c.last_message_time || 0);
                                         return {
                                             ...c,
@@ -346,8 +420,6 @@ export const initGlobalChatSync = async (userId: string) => {
             const newMsg = payload.new as Message;
             
             if (newMsg && newMsg.content === '🚫 This message was unsent.') {
-                const wasUnread = !newMsg.seen && newMsg.sender_id !== userId;
-                
                 // 1. Update cachedMessages if it exists in memory
                 if (cachedMessages.has(newMsg.conversation_id)) {
                     const msgs = cachedMessages.get(newMsg.conversation_id)!;
@@ -356,7 +428,7 @@ export const initGlobalChatSync = async (userId: string) => {
                 }
                 
                 // 2. Determine the last valid message for the preview
-                let lastValidMsgContent = '🚫 This message was unsent.';
+                let lastValidMsgContent: string | null = '🚫 This message was unsent.';
                 let lastValidMsgTime = newMsg.created_at || new Date().toISOString();
                 
                 if (cachedMessages.has(newMsg.conversation_id)) {
@@ -365,30 +437,66 @@ export const initGlobalChatSync = async (userId: string) => {
                     if (lastValidMsg) {
                         lastValidMsgContent = lastValidMsg.content || '🎤 Voice message';
                         lastValidMsgTime = lastValidMsg.created_at;
+                    } else {
+                        // If there are no valid messages left, clear it out so the UI shows "Say hello!"
+                        lastValidMsgContent = '';
                     }
                 }
-                
-                // 3. Update global cachedConversations IMMEDIATELY, reducing badge if it was unread!
+                // ATOMIC BADGE SYNC: Instantly delete this specific message ID from the unread set
+                globallyDeletedMessageIds.add(newMsg.id);
+                if (unreadMessageIdsByConv.has(newMsg.conversation_id)) {
+                    unreadMessageIdsByConv.get(newMsg.conversation_id)!.delete(newMsg.id);
+                }
+                const newUnreadCount = unreadMessageIdsByConv.get(newMsg.conversation_id)?.size || 0;
+
+                // 3. Update global cachedConversations IMMEDIATELY, using exact badge size!
                 if (cachedConversations) {
                     const updatedConvs = cachedConversations.map(c => {
                         if (c.id === newMsg.conversation_id) {
-                            const newUnread = wasUnread ? Math.max(0, c.unread_count - 1) : c.unread_count;
-                            markConversationAsUnreadOptimistically(newMsg.conversation_id, newUnread);
                             return {
                                 ...c,
-                                unread_count: newUnread,
+                                unread_count: newUnreadCount,
                                 last_message: lastValidMsgContent,
                                 last_message_time: lastValidMsgTime
                             };
                         }
                         return c;
                     });
-                    updatedConvs.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime());
-                    setCachedConversations(updatedConvs);
+                    
+                    // Real-time Chat Card Removal: Instantly drop the conversation if all messages are gone and the current user didn't initiate it.
+                    const filteredConvs = updatedConvs.filter(c => {
+                        if (c.id === newMsg.conversation_id) {
+                            const hasValidMessages = cachedMessages.get(newMsg.conversation_id)?.some(m => m.content !== '🚫 This message was unsent.') || false;
+                            // If the chat has no valid messages, we delete it IF we didn't send the deleted message.
+                            // This ensures the sender keeps their empty chat card, but the receiver's ghost card vanishes instantly.
+                            if (!hasValidMessages && newMsg.sender_id !== userId) {
+                                return false; // Instantly remove the ghost card!
+                            }
+                        }
+                        return true;
+                    });
+
+                    filteredConvs.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime());
+                    setCachedConversations(filteredConvs);
                 } else {
                     scheduleFallbackFetch(userId);
                 }
             } else {
+                // ATOMIC BADGE SYNC: If a message we received was just marked as 'seen: true', remove it from the unread set!
+                if (newMsg && newMsg.seen && newMsg.sender_id !== userId) {
+                    if (unreadMessageIdsByConv.has(newMsg.conversation_id)) {
+                        unreadMessageIdsByConv.get(newMsg.conversation_id)!.delete(newMsg.id);
+                    }
+                    
+                    if (cachedConversations) {
+                        const newUnreadCount = unreadMessageIdsByConv.get(newMsg.conversation_id)?.size || 0;
+                        const updatedConvs = cachedConversations.map(c => 
+                            c.id === newMsg.conversation_id ? { ...c, unread_count: newUnreadCount } : c
+                        );
+                        setCachedConversations(updatedConvs);
+                    }
+                }
+
                 // Globally update the cached message so the UI doesn't require a refresh for read receipts
                 if (newMsg && cachedMessages.has(newMsg.conversation_id)) {
                     const msgs = cachedMessages.get(newMsg.conversation_id)!;
@@ -410,10 +518,12 @@ export const initGlobalChatSync = async (userId: string) => {
                 if (targetMsg) {
                     foundConvId = convId;
                     
-                    // Prevent double-decrementing: The UPDATE payload already decrements the badge when changing content to 'unsent'.
-                    // If the message is already marked as unsent in our cache, we should NOT decrement again on DELETE.
-                    const isAlreadyUnsent = targetMsg.content === '🚫 This message was unsent.';
-                    const wasUnread = !isAlreadyUnsent && !targetMsg.seen && targetMsg.sender_id !== userId;
+                    // ATOMIC BADGE SYNC: Instantly delete this specific message ID from the unread set
+                    globallyDeletedMessageIds.add(deletedId);
+                    if (unreadMessageIdsByConv.has(convId)) {
+                        unreadMessageIdsByConv.get(convId)!.delete(deletedId);
+                    }
+                    const newUnreadCount = unreadMessageIdsByConv.get(convId)?.size || 0;
                     
                     const updatedMsgs = msgs.filter(m => m.id !== deletedId);
                     cachedMessages.set(convId, updatedMsgs);
@@ -423,19 +533,29 @@ export const initGlobalChatSync = async (userId: string) => {
                     if (cachedConversations) {
                         const updatedConvs = cachedConversations.map(c => {
                             if (c.id === convId) {
-                                const newUnread = wasUnread ? Math.max(0, c.unread_count - 1) : c.unread_count;
-                                markConversationAsUnreadOptimistically(convId, newUnread);
                                 return {
                                     ...c,
-                                    unread_count: newUnread,
+                                    unread_count: newUnreadCount,
                                     last_message: lastValidMsg ? (lastValidMsg.content || '🎤 Voice message') : 'Conversation started',
                                     last_message_time: lastValidMsg ? lastValidMsg.created_at : c.last_message_time
                                 };
                             }
                             return c;
                         });
-                        updatedConvs.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime());
-                        setCachedConversations(updatedConvs);
+
+                        // Real-time Chat Card Removal: Instantly drop the conversation if all messages are gone and the current user didn't initiate it.
+                        const filteredConvs = updatedConvs.filter(c => {
+                            if (c.id === convId) {
+                                const hasValidMessages = updatedMsgs.some(m => m.content !== '🚫 This message was unsent.');
+                                if (!hasValidMessages && c.initiated_by !== userId) {
+                                    return false; // Instantly remove the ghost card!
+                                }
+                            }
+                            return true;
+                        });
+
+                        filteredConvs.sort((a,b) => new Date(b.last_message_time || 0).getTime() - new Date(a.last_message_time || 0).getTime());
+                        setCachedConversations(filteredConvs);
                     }
                     break;
                 }

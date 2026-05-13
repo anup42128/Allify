@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getCachedConversations, cachedConversations, cachedMessages, cachedForUserId, subscribeToChatUpdates, fetchGlobalConversations, setCachedConversations, markConversationAsReadOptimistically, setCurrentlyViewingConvId } from '../lib/chatStore';
+import { getCachedConversations, cachedConversations, cachedMessages, cachedForUserId, subscribeToChatUpdates, fetchGlobalConversations, setCachedConversations, markConversationAsReadOptimistically, setCurrentlyViewingConvId, setCurrentlyViewingUserId, clearUnreadMessageIdsForConversation } from '../lib/chatStore';
 import { initGlobalPresenceSync } from '../lib/presenceStore';
 import { useChatScroll } from './useChatScroll';
 import { useChatRealtime } from './useChatRealtime';
@@ -19,10 +19,8 @@ export function useChatManager() {
     
     useEffect(() => { activeConvIdRef.current = activeConvId; }, [activeConvId]);
     
-    useEffect(() => {
-        setCurrentlyViewingConvId(activeConvId);
-        return () => setCurrentlyViewingConvId(null);
-    }, [activeConvId]);
+    // currentlyViewingConvId and currentlyViewingUserId are now synced synchronously 
+    // inside the open/close handlers to prevent real-time message race conditions.
     
     const [messages, setMessages] = useState<Message[]>([]);
 
@@ -147,40 +145,55 @@ export function useChatManager() {
         const openOrCreate = async () => {
             try {
                 setIsOpeningChat(true);
-                const { data: rpcConvId, error } = await supabase.rpc('find_or_create_conversation', {
-                    user_a: currentUser.id,
-                    user_b: startWith.id,
-                });
-                if (error) throw error;
 
-                const { data: fullProfile } = await supabase
-                    .from('profiles')
-                    .select('id, username, full_name, avatar_url, last_seen')
-                    .eq('id', startWith.id)
-                    .single();
-
-                await fetchConversations(currentUser.id);
-
-                // Find the correct conversation from the freshly-loaded cache by the
-                // other user's ID — this guarantees we open the existing conversation
-                // with all its messages, not a newly-created empty duplicate.
+                // CLIENT-SIDE PRE-CHECK: Prevent duplicate creation API calls
+                // If we already have a conversation with this user in our cache, use it immediately!
                 const freshConvs = getCachedConversations() || [];
-                const matchedConv = freshConvs.find(c => c.other_user?.id === startWith.id);
-                const convId = matchedConv?.id ?? rpcConvId;
+                const existingConv = freshConvs.find(c => c.other_user?.id === startWith.id);
+
+                let convId = existingConv?.id;
+                let fullProfile: any = existingConv?.other_user;
+
+                if (!convId) {
+                    // Only call the creation RPC if absolutely no local record exists
+                    const { data: rpcConvId, error } = await supabase.rpc('find_or_create_conversation', {
+                        user_a: currentUser.id,
+                        user_b: startWith.id,
+                    });
+                    if (error) throw error;
+                    convId = rpcConvId;
+
+                    const { data: profileData } = await supabase
+                        .from('profiles')
+                        .select('id, username, full_name, avatar_url, last_seen')
+                        .eq('id', startWith.id)
+                        .single();
+                    fullProfile = profileData;
+                }
+                
+                // Re-fetch only if we didn't have it locally to ensure we get the latest DB state
+                if (!existingConv) {
+                    await fetchConversations(currentUser.id);
+                }
 
                 if (!activeConvIdRef.current) {
                     window.history.pushState({ chatOpen: true }, '');
                 }
-                setActiveConvId(convId);
-                setActiveConvUser(
-                    matchedConv?.other_user ?? ({
-                        id: startWith.id,
-                        username: startWith.username,
-                        full_name: startWith.full_name,
-                        avatar_url: startWith.avatar_url,
-                        ...(fullProfile?.last_seen ? { last_seen: fullProfile.last_seen } : {}),
-                    } as Participant)
-                );
+                
+                const finalUser = existingConv?.other_user ?? ({
+                    id: startWith.id,
+                    username: startWith.username,
+                    full_name: startWith.full_name,
+                    avatar_url: startWith.avatar_url,
+                    ...(fullProfile?.last_seen ? { last_seen: fullProfile.last_seen } : {}),
+                } as Participant);
+
+                // Synchronously update the global context for real-time listeners to avoid React render cycle race conditions
+                setCurrentlyViewingConvId(convId as string);
+                setCurrentlyViewingUserId(finalUser.id);
+                
+                setActiveConvId(convId as string);
+                setActiveConvUser(finalUser);
             } catch (err) {
                 console.error('Error opening chat:', err);
                 startChatHandledRef.current = false;
@@ -238,6 +251,8 @@ export function useChatManager() {
                 );
                 cachedMessages.set(convId, locallySeenData);
                 setMessages(locallySeenData);
+
+                clearUnreadMessageIdsForConversation(convId);
 
                 setConversations(prevConv => prevConv.map(c =>
                     c.id === convId ? { ...c, unread_count: 0 } : c
@@ -309,6 +324,7 @@ export function useChatManager() {
         setMessages,
         setConversations,
         activeConvId,
+        setActiveConvId,
         activeConvIdRef,
         fetchConversations,
         scrollToBottom,
@@ -330,6 +346,11 @@ export function useChatManager() {
         if (!activeConvIdRef.current) {
             window.history.pushState({ chatOpen: true }, '');
         }
+        
+        // Sync context immediately
+        setCurrentlyViewingConvId(conv.id);
+        setCurrentlyViewingUserId(conv.other_user.id);
+        
         setActiveConvId(conv.id);
         setActiveConvUser(conv.other_user);
         
@@ -354,6 +375,8 @@ export function useChatManager() {
     };
 
     const closeConversation = () => {
+        setCurrentlyViewingConvId(null);
+        setCurrentlyViewingUserId(null);
         setActiveConvId(null);
         setActiveConvUser(null);
         if (window.history.state?.chatOpen) {
@@ -363,36 +386,62 @@ export function useChatManager() {
 
     const handleStartNewChat = async (user: Participant) => {
         if (!currentUser?.id) return;
-        const { data: rpcConvId, error } = await supabase.rpc('find_or_create_conversation', {
-            user_a: currentUser.id,
-            user_b: user.id,
-        });
-        if (error) {
-            console.error('Error opening chat:', error);
-            throw error;
-        }
 
-        await fetchConversations(currentUser.id);
-
-        // Find the correct conversation from the freshly-loaded cache by the
-        // other user's ID — this guarantees we open the existing conversation
-        // with all its messages, not a newly-created empty duplicate.
+        // CLIENT-SIDE PRE-CHECK: Prevent duplicate creation API calls
         const freshConvs = getCachedConversations() || [];
-        const matchedConv = freshConvs.find(c => c.other_user?.id === user.id);
-        const convId = matchedConv?.id ?? rpcConvId;
+        const existingConv = freshConvs.find(c => c.other_user?.id === user.id);
+
+        let convId = existingConv?.id;
+
+        if (!convId) {
+            // OPTIMISTIC CREATION: Do NOT hit the database yet!
+            // Generate a deterministic temporary ID so we can route to it instantly.
+            convId = `optimistic_${user.id}`;
+
+            const newOptimisticConv: Conversation = {
+                id: convId,
+                other_user: {
+                    id: user.id,
+                    username: user.username,
+                    full_name: user.full_name,
+                    avatar_url: user.avatar_url,
+                } as Participant,
+                last_message: 'New conversation',
+                last_message_time: new Date().toISOString(),
+                unread_count: 0,
+                initiated_by: currentUser.id,
+            };
+
+            const updatedConvs = [newOptimisticConv, ...freshConvs];
+            
+            // Instantly show the card in the sidebar
+            if (cachedConversations) {
+                setCachedConversations(updatedConvs);
+            }
+            setConversations(updatedConvs);
+            
+            // Set empty messages array for this optimistic chat
+            cachedMessages.set(convId, []);
+            setMessages([]);
+        }
 
         if (!activeConvIdRef.current) {
             window.history.pushState({ chatOpen: true }, '');
         }
-        setActiveConvId(convId);
-        setActiveConvUser(
-            matchedConv?.other_user ?? ({
-                id: user.id,
-                username: user.username,
-                full_name: user.full_name,
-                avatar_url: user.avatar_url,
-            } as Participant)
-        );
+        
+        const finalUser = existingConv?.other_user ?? ({
+            id: user.id,
+            username: user.username,
+            full_name: user.full_name,
+            avatar_url: user.avatar_url,
+        } as Participant);
+
+        // Sync context immediately
+        setCurrentlyViewingConvId(convId as string);
+        setCurrentlyViewingUserId(finalUser.id);
+
+        setActiveConvId(convId as string);
+        setActiveConvUser(finalUser);
     };
 
     const groupedMessages = messages.reduce<{ date: string; msgs: Message[] }[]>((groups, msg) => {

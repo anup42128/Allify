@@ -181,7 +181,10 @@ export const Sidebar = () => {
                                         <div className={`w-7 h-7 md:w-8 md:h-8 transition-all ${isActive ? 'stroke-[2.5px] drop-shadow-md scale-110 md:scale-100 md:stroke-[2px]' : 'stroke-2'}`}>
                                             {item.icon}
                                         </div>
-                                        {badgeCount > 0 && (
+                                        {badgeCount > 0 && isMsgs && (
+                                            <div className="absolute top-0 right-0 md:-right-0.5 bg-red-500 w-2.5 h-2.5 rounded-full ring-[2.5px] ring-black" />
+                                        )}
+                                        {badgeCount > 0 && !isMsgs && (
                                             <div className="absolute -top-1 -right-2 md:-right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-black">
                                                 {badgeCount > 7 ? '7+' : badgeCount}
                                             </div>
@@ -189,8 +192,11 @@ export const Sidebar = () => {
                                     </div>
                                     <span className="hidden md:flex ml-4 items-center gap-2 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 whitespace-nowrap overflow-hidden">
                                         {item.label}
-                                        {badgeCount > 0 && (
-                                            <span className="bg-red-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                        {badgeCount > 0 && isMsgs && (
+                                            <span className="bg-red-500 w-2 h-2 rounded-full flex-shrink-0" />
+                                        )}
+                                        {badgeCount > 0 && !isMsgs && (
+                                            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                                                 {badgeCount > 7 ? '7+' : badgeCount}
                                             </span>
                                         )}

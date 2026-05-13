@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { cachedMessages, cachedConversations, setCachedConversations } from '../lib/chatStore';
+import { cachedMessages, cachedConversations, setCachedConversations, upgradeOptimisticConversation } from '../lib/chatStore';
 import type { Message, Conversation } from '../types/chat';
 
 const generateId = () => {
@@ -21,6 +21,7 @@ export interface UseChatActionsParams {
     setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
     setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
     activeConvId: string | null;
+    setActiveConvId: React.Dispatch<React.SetStateAction<string | null>>;
     activeConvIdRef: React.MutableRefObject<string | null>;
     fetchConversations: (userId: string) => Promise<void>;
     scrollToBottom: (behavior?: ScrollBehavior) => void;
@@ -42,6 +43,7 @@ export function useChatActions({
     setMessages,
     setConversations,
     activeConvId,
+    setActiveConvId,
     activeConvIdRef,
     fetchConversations,
     scrollToBottom,
@@ -56,6 +58,37 @@ export function useChatActions({
     isSendingTypingRef,
     scrollContainerRef
 }: UseChatActionsParams) {
+
+    const ensureRealConversation = async (currentConvId: string) => {
+        if (!currentConvId.startsWith('optimistic_')) return currentConvId;
+        
+        const targetUserId = currentConvId.replace('optimistic_', '');
+        const { data: realConvId, error } = await supabase.rpc('find_or_create_conversation', {
+            user_a: currentUser.id,
+            user_b: targetUserId,
+        });
+        
+        if (error || !realConvId) throw error || new Error('Failed to create real conversation');
+        
+        // IMPORTANT: Because the RPC doesn't set initiated_by automatically, we set it here.
+        // We use `.is('initiated_by', null)` to ensure we NEVER overwrite the initiator 
+        // if this conversation was actually created by the other user previously.
+        await supabase.from('conversations')
+            .update({ initiated_by: currentUser.id })
+            .eq('id', realConvId)
+            .is('initiated_by', null);
+        
+        // Upgrade all local state to use the real conversation ID immediately
+        setActiveConvId(realConvId);
+        activeConvIdRef.current = realConvId;
+        upgradeOptimisticConversation(currentConvId, realConvId);
+        
+        // Also update local component state manually so current functions have it
+        setConversations(prev => prev.map(c => c.id === currentConvId ? { ...c, id: realConvId } : c));
+        setMessages(prev => prev.map(m => m.conversation_id === currentConvId ? { ...m, conversation_id: realConvId } : m));
+        
+        return realConvId;
+    };
 
     const handleReaction = useCallback(async (messageId: string, emoji: string) => {
         setActiveReactMsg(null);
@@ -182,8 +215,6 @@ export function useChatActions({
             setTimeout(async () => {
                 await supabase.from('messages').delete().eq('id', msgId);
             }, 2500);
-
-            if (currentUser?.id) fetchConversations(currentUser.id);
         } catch (err) {
             console.error('Failed to unsend message:', err);
         }
@@ -300,6 +331,10 @@ export function useChatActions({
                 last_message_time: new Date().toISOString()
             }).eq('id', activeConvId);
 
+            if (cachedConversations && !cachedConversations.some(c => c.id === activeConvId)) {
+                fetchConversations(currentUser.id);
+            }
+
             setMessages(prev => {
                 const updated = prev.map(m => m.id === realId ? { ...m, optimistic: false } : m);
                 cachedMessages.set(activeConvId, updated);
@@ -315,6 +350,14 @@ export function useChatActions({
 
     const handleVoiceRecordStopFromInput = useCallback(async (blob: Blob, durationSeconds: number) => {
         if (!activeConvId || !currentUser) return;
+        
+        let finalConvId = activeConvId;
+        try {
+            finalConvId = await ensureRealConversation(activeConvId);
+        } catch (err) {
+            console.error('Failed to promote optimistic conversation:', err);
+            return;
+        }
 
         const tempId = generateId();
         const pendingReplyId = activeReplyMsg ? activeReplyMsg.id : null;
@@ -322,7 +365,7 @@ export function useChatActions({
 
         const tempMsg: Message = {
             id: tempId,
-            conversation_id: activeConvId,
+            conversation_id: finalConvId,
             sender_id: currentUser.id,
             content: null,
             audio_url: 'pending',
@@ -336,7 +379,7 @@ export function useChatActions({
         setActiveReplyMsg(null);
         setMessages(prev => {
             const next = [...prev, tempMsg];
-            cachedMessages.set(activeConvId, next);
+            cachedMessages.set(finalConvId, next);
             return next;
         });
         scrollToBottom();
@@ -356,11 +399,21 @@ export function useChatActions({
         if (!text || !activeConvId || !currentUser?.id || isSending) return;
 
         setIsSending(true);
+        let finalConvId = activeConvId;
+
+        try {
+            finalConvId = await ensureRealConversation(activeConvId);
+        } catch (err) {
+            console.error('Failed to promote optimistic conversation:', err);
+            setIsSending(false);
+            return;
+        }
+
         const realId = generateId();
 
         const optimisticMsg: Message = {
             id: realId,
-            conversation_id: activeConvId,
+            conversation_id: finalConvId,
             sender_id: currentUser.id,
             content: text,
             created_at: new Date().toISOString(),
@@ -373,14 +426,14 @@ export function useChatActions({
         setActiveReplyMsg(null);
         setMessages(prev => {
             const next = [...prev, optimisticMsg];
-            cachedMessages.set(activeConvId, next);
+            cachedMessages.set(finalConvId, next);
             return next;
         });
         scrollToBottom();
 
         setConversations(prev => {
             const newConvs = prev.map(c =>
-                c.id === activeConvId
+                c.id === finalConvId
                     ? { ...c, last_message: text, last_message_time: optimisticMsg.created_at }
                     : c
             ).sort((a, b) => {
@@ -393,7 +446,7 @@ export function useChatActions({
         
         if (cachedConversations) {
             setCachedConversations(cachedConversations.map(c =>
-                c.id === activeConvId
+                c.id === finalConvId
                     ? { ...c, last_message: text, last_message_time: optimisticMsg.created_at }
                     : c
             ).sort((a, b) => {
@@ -406,7 +459,7 @@ export function useChatActions({
         try {
             const { error: msgError } = await supabase.from('messages').insert({
                 id: realId,
-                conversation_id: activeConvId,
+                conversation_id: finalConvId,
                 sender_id: currentUser.id,
                 content: text,
                 reply_to_id: pendingReplyId
@@ -416,7 +469,13 @@ export function useChatActions({
             await supabase.from('conversations').update({
                 last_message: text,
                 last_message_time: new Date().toISOString(),
-            }).eq('id', activeConvId);
+            }).eq('id', finalConvId);
+            
+            // If this was a brand new conversation, it wasn't in the cache yet.
+            // Trigger a background fetch to securely load it into the sidebar now that it has a message!
+            if (cachedConversations && !cachedConversations.some(c => c.id === activeConvId)) {
+                fetchConversations(currentUser.id);
+            }
         } catch (err: any) {
             console.error('Error sending message:', err?.message ?? err);
             setMessages(prev => prev.filter(m => m.id !== realId));

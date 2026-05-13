@@ -1,6 +1,6 @@
 import { useRef, useCallback, useLayoutEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { cachedMessages, cachedConversations, setCachedConversations, markConversationAsReadOptimistically } from '../lib/chatStore';
+import { cachedMessages, cachedConversations, setCachedConversations, markConversationAsReadOptimistically, clearUnreadMessageIdsForConversation } from '../lib/chatStore';
 import type { Message } from '../types/chat';
 
 interface UseChatScrollOptions {
@@ -118,6 +118,7 @@ export function useChatScroll({
                     cachedMessages.set(activeConvId, updated);
                     
                     setInitialUnreadId(null);
+                    clearUnreadMessageIdsForConversation(activeConvId);
                     markConversationAsReadOptimistically(activeConvId);
                     setConversations(prevConv => prevConv.map(c => 
                         c.id === activeConvId ? { ...c, unread_count: 0 } : c
